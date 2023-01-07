@@ -16,9 +16,9 @@ The above should then be made available via a gRPC stream.
 
 ### Single Connection
 
--[x] The service should connect to a single exchange, to receive the order book for a given key-pair.
-- [ ] The service should sort the order book and then extract the top 10 bids and asks.
-- [ ] The service should calculate the spread from the order book.
+- [x] The service should connect to a single exchange, to receive the order book for a given key-pair.
+- [x] The service should sort the order book and then extract the top 10 bids and asks.
+- [x] The service should calculate the spread from the order book.
 - [ ] The service should then publish the summary data to the outbound gRPC stream.
 
 ### Adding Configuration
