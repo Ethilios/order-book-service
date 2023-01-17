@@ -1,0 +1,31 @@
+syntax = "proto3";
+
+package orderbook;
+
+service OrderbookAggregator {
+  rpc BookSummary(Empty) returns (stream Summary);
+}
+
+message Empty {}
+
+message Summary {
+  double spread = 1;
+  repeated Level bids = 2;
+  repeated Level asks = 3;
+}
+
+message Level {
+  string exchange = 1;
+  double price = 2;
+  double amount = 3;
+}
+
+// Say we're connected to Exchanges A and B.
+// When merging the orderbooks from A and B there could be a case where they both contain an ask/bid at the same price.
+// Should the amounts from A and B at that price be combined?
+//  - If so how should it be shown in the Summary that the amount is an accumulation from A and B?
+// Or
+// Should the amounts be shown separately with their respective amounts shown at the same price for A and B?
+//  - If so should it then be ordered by lowest(for an ask)/highest(for a bid) amount?
+//
+// My inclination was to display them separately in the summary but just wanted to check.
