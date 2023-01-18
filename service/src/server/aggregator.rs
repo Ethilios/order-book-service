@@ -5,18 +5,18 @@
 // use tokio_stream::wrappers::ReceiverStream;
 //
 // pub(crate) struct OrderbookWithSource {
-//     orderbook: Box<dyn OrderBook + Send>,
+//     orderbook: BoxedOrderbook,
 //     // This is the exchange, I may change it to be an enum
 //     source: String,
 // }
 //
 // pub(crate) struct Aggregator {
-//     inbound: ReceiverStream<Box<dyn OrderBook + Send>>,
+//     inbound: ReceiverStream<BoxedOrderbook>,
 //     outbound: Sender<Summary>,
 // }
 //
 // impl Aggregator {
-//     pub(crate) fn add_stream(&mut self, new_stream: ReceiverStream<Box<dyn OrderBook + Send>>) {
+//     pub(crate) fn add_stream(&mut self, new_stream: ReceiverStream<BoxedOrderbook>) {
 //         self.inbound.into_inner();
 //     }
 // }

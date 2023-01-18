@@ -1,13 +1,13 @@
 use anyhow::Error;
 use futures_util::{SinkExt, StreamExt};
 use serde::{Deserialize, Serialize};
-use serde_json::json;
 use std::fmt::{Display, Formatter};
 use tokio::sync::mpsc::{channel as mpsc_channel, Receiver};
 use tokio_tungstenite::{connect_async, tungstenite::Message};
 use url::Url;
 
 use crate::exchange::{best_orders_to_depth, Exchange, Order, OrderBook, Ordering};
+use crate::BoxedOrderbook;
 use shared_types::{proto::Level, TradedPair};
 
 const BITSTAMP: &str = "Bitstamp";
@@ -35,7 +35,7 @@ impl Exchange for Bitstamp {
     fn stream_order_book_for_pair(
         &self,
         traded_pair: &TradedPair,
-    ) -> Result<Receiver<Box<dyn OrderBook + Send>>, Error> {
+    ) -> Result<Receiver<BoxedOrderbook>, Error> {
         let (order_book_tx, order_book_rx) = mpsc_channel(100);
 
         let ws_url = self.root_ws_endpoint.to_string();
@@ -68,7 +68,7 @@ impl Exchange for Bitstamp {
                     while let Some(Ok(msg)) = ws_stream.next().await {
                         match serde_json::from_str::<LiveOrderBookResponse>(&msg.to_string()) {
                             Ok(order_book) => {
-                                let order_book: Box<dyn OrderBook + Send> = Box::new(order_book);
+                                let order_book: BoxedOrderbook = Box::new(order_book);
                                 let _ = order_book_tx.send(order_book).await;
                             }
                             Err(serde_err) => println!("\nSerde Error:\n{}", serde_err),

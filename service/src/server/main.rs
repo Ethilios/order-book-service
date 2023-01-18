@@ -3,25 +3,15 @@ mod exchange;
 mod exchanges;
 mod grpc_server;
 
-use std::collections::{HashMap, VecDeque};
-use std::string::ToString;
+use std::{collections::HashMap, string::ToString};
 
-use anyhow::Error;
-use futures::stream::select_all;
-use futures_util::stream::SelectAll;
-use futures_util::StreamExt;
-use tokio::{
-    sync::{broadcast::channel as broadcast_channel, mpsc::Receiver},
-    task::JoinSet,
-};
+use futures_util::{stream::SelectAll, StreamExt};
+use tokio::sync::broadcast::channel as broadcast_channel;
 use tokio_stream::wrappers::ReceiverStream;
 
-use crate::exchange::{best_orders_to_depth, Ordering};
-use crate::exchanges::binance::PartialBookDepthResponse;
-use crate::exchanges::bitstamp::LiveOrderBookResponse;
 use exchange::{Exchange, OrderBook};
 use exchanges::{binance::Binance, bitstamp::Bitstamp};
-use shared_types::proto::{Level, Summary};
+use shared_types::proto::Summary;
 use shared_types::TradedPair;
 
 type BoxedOrderbook = Box<dyn OrderBook + Send>;
@@ -78,89 +68,31 @@ async fn main() {
         return;
     }
 
-    let mut orderbook_buffer = HashMap::new();
-
-    while let Some(orderbook) = orderbook_stream.next().await {
-        orderbook_buffer.insert(orderbook.source(), orderbook);
-
-        // If the buffer has more than one orderbook stored then we can generate a summary
-        // todo check timestamps are "close enough" - could be another config value for tolerance
-        if orderbook_buffer.keys().len() > 1 {
-            let summary =
-                merge_orderbooks_into_summary(orderbook_buffer.drain().map(|(_, value)| value));
-
-            println!("Summary: {}", summary);
-        }
-
-        // println!("Orderbook from: {}", orderbook.source())
-    }
-
     // The receiver is given to the gRPC server and is subscribed to for each new client.
     let (grpc_server_tx, grpc_server_rx) = broadcast_channel(100);
 
-    let orderbook_merger_handle = tokio::spawn(async move {
-        // vec of options
+    let summary_generator_task = tokio::spawn(async move {
+        let mut orderbook_buffer = HashMap::new();
 
-        // tokio select on recvs *****
+        while let Some(orderbook) = orderbook_stream.next().await {
+            orderbook_buffer.insert(orderbook.source(), orderbook);
 
-        // fill vector
+            // If the buffer has more than one orderbook stored then we can generate a summary - this also clears the map to prevent stale data carrying over.
+            // todo check timestamps are "close enough" - could be another config value for tolerance
+            if orderbook_buffer.keys().len() > 1 {
+                let summary =
+                    merge_orderbooks_into_summary(orderbook_buffer.drain().map(|(_, value)| value));
 
-        // check for two Somes
+                println!("Summary: {}", summary);
 
-        // merge into orderbook then flush vector
-
-        // repeat
-
-        // loop {
-        //     let mut task_set = JoinSet::new();
-        //
-        //     let bin_stream = ReceiverStream::new(binance_recv.recv());
-        //     let bit_stream = ReceiverStream::new(bitstamp_recv.recv());
-        //
-        //     let zipped = bin_stream.zip(bit_stream);
-        //
-        //     while let x = zipped.await {}
-        //     task_set.spawn(binance_recv.recv());
-        //     task_set.spawn(bitstamp_recv.recv());
-        //
-        //     let mut orderbooks = Vec::new();
-        //
-        //     while let Some(res) = task_set.join_next().await {
-        //         if let Ok(Some(orderbook)) = res {
-        //             orderbooks.push(orderbook);
-        //         }
-        //
-        //         // todo handle error case
-        //     }
-        //
-        //     let summary = merge_orderbooks_into_summary(orderbooks.into_iter());
-        //
-        //     // Send the grpc server the summaries orderbook
-        //     let _ = grpc_server_tx.send(summary);
-        // }
+                let _ = grpc_server_tx.send(summary);
+            }
+        }
     });
 
     let grpc_server_handle = tokio::spawn(grpc_server::run_server(grpc_server_rx));
 
-    let _ = tokio::join!(orderbook_merger_handle, grpc_server_handle);
-}
-
-struct OrderbookBuffer {
-    buffer: HashMap<String, BoxedOrderbook>,
-}
-
-impl OrderbookBuffer {
-    fn new(num_sources: usize) -> Self {
-        Self {
-            buffer: HashMap::with_capacity(num_sources),
-        }
-    }
-
-    fn push(&mut self, orderbook: BoxedOrderbook) {
-        self.buffer.insert(orderbook.source(), orderbook);
-    }
-
-    fn check_for_comparable_books(&mut self) {}
+    let _ = tokio::join!(summary_generator_task, grpc_server_handle);
 }
 
 /// Construct a [Summary] from a collection of [OrderBook]s
@@ -182,10 +114,7 @@ pub(crate) fn merge_orderbooks_into_summary(
 
     Summary {
         spread: asks[1].price - bids[1].price,
-        asks: asks[..5].to_vec(),
-        bids: bids[..5].to_vec(),
+        asks: asks[..10].to_vec(),
+        bids: bids[..10].to_vec(),
     }
 }
-
-// 1. impl Type issue
-// 2. impl Trait on external type - Create local type and then impl From to go between.

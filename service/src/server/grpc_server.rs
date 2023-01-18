@@ -3,7 +3,6 @@ use tokio::sync::mpsc::channel as mpsc_channel;
 use tokio_stream::wrappers::ReceiverStream;
 use tonic::{transport::Server, Request, Response, Status};
 
-use crate::exchange::OrderBook;
 use shared_types::proto::{
     orderbook_aggregator_server::{OrderbookAggregator, OrderbookAggregatorServer},
     Empty, Summary,
@@ -20,10 +19,9 @@ pub(crate) struct OrderbookService {
 impl OrderbookAggregator for OrderbookService {
     type BookSummaryStream = ReceiverStream<Result<Summary, Status>>;
 
-    #[allow(unused)]
     async fn book_summary(
         &self,
-        request: Request<Empty>,
+        _request: Request<Empty>,
     ) -> Result<Response<Self::BookSummaryStream>, Status> {
         // The server-side subscription
         let mut new_subscriber = self.summary_receiver.resubscribe();
@@ -34,9 +32,7 @@ impl OrderbookAggregator for OrderbookService {
         // This task takes the sending side of the summary channel and populates it with Summary events as it receives OrderBooks from the server-side subscription.
         tokio::spawn(async move {
             while let Ok(summary) = new_subscriber.recv().await {
-                // todo convert
-
-                summary_tx.send(Ok(summary)).await;
+                let _ = summary_tx.send(Ok(summary)).await;
             }
         });
 

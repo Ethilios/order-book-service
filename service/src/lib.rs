@@ -1,4 +1,3 @@
-use crate::proto::Level;
 use std::fmt::{Display, Formatter};
 
 pub mod proto {

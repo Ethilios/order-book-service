@@ -4,6 +4,7 @@ use anyhow::Error;
 use serde::{de, Deserialize, Deserializer};
 use tokio::sync::mpsc::Receiver;
 
+use crate::BoxedOrderbook;
 use shared_types::{proto::Level, TradedPair};
 
 // Hashmap to represent Order (Key: Price, Value: Quantity)
@@ -74,5 +75,5 @@ pub(crate) trait Exchange {
     fn stream_order_book_for_pair(
         &self,
         traded_pair: &TradedPair,
-    ) -> Result<Receiver<Box<dyn OrderBook + Send>>, Error>;
+    ) -> Result<Receiver<BoxedOrderbook>, Error>;
 }
