@@ -1,11 +1,13 @@
-use futures_util::stream::SelectAll;
-use futures_util::StreamExt;
 use std::collections::HashMap;
+
+use futures_util::{stream::SelectAll, StreamExt};
 use tokio::sync::broadcast::{channel as broadcast_channel, Sender as BroadcastSender};
 use tokio_stream::wrappers::ReceiverStream;
 
-use crate::exchange::BoxedOrderbook;
-use crate::{exchange::BoxedExchange, grpc_server::SummaryReceiver};
+use crate::{
+    exchange::{BoxedExchange, BoxedOrderbook},
+    grpc_server::SummaryReceiver,
+};
 use shared_types::proto::{Summary, TradedPair};
 
 pub(crate) struct OrderbookAggregator {
@@ -121,9 +123,12 @@ pub(crate) fn merge_orderbooks_into_summary(
 
 #[cfg(test)]
 mod tests {
-    use crate::aggregator::merge_orderbooks_into_summary;
-    use crate::exchange::{sort_orders_to_depth, BoxedOrderbook, Order, OrderBook, Ordering};
     use lazy_static::lazy_static;
+
+    use crate::{
+        aggregator::merge_orderbooks_into_summary,
+        exchange::{sort_orders_to_depth, BoxedOrderbook, Order, OrderBook, Ordering},
+    };
     use shared_types::proto::{Level, Summary};
 
     struct TestOrderbook {

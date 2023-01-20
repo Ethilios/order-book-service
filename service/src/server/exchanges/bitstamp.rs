@@ -1,7 +1,8 @@
+use std::fmt::{Display, Formatter};
+
 use anyhow::Error;
 use futures_util::{SinkExt, StreamExt};
 use serde::{Deserialize, Serialize};
-use std::fmt::{Display, Formatter};
 use tokio::sync::mpsc::{channel as mpsc_channel, Receiver};
 use tokio_tungstenite::{connect_async, tungstenite::Message};
 use url::Url;
@@ -173,7 +174,7 @@ impl OrderBook for LiveOrderBookResponse {
 
 // This has been taken from https://www.bitstamp.net/websocket/v2/
 // The issue is that regardless of what is requested Bitstamp seems to return a success message followed by an empty stream.
-// So I've added a short-term solution of hard-coded the supported traded pairs which can be checked against.
+// So I've added a short-term solution: a hard-coded list of the supported traded pairs which can be use to check requested pairs.
 const VALID_PAIRS: [&str; 175] = [
     "btcusd", "btceur", "btcgbp", "btcpax", "gbpusd", "gbpeur", "eurusd", "xrpusd", "xrpeur",
     "xrpbtc", "xrpgbp", "ltcbtc", "ltcusd", "ltceur", "ltcgbp", "ethbtc", "ethusd", "etheur",

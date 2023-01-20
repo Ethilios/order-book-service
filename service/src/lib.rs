@@ -1,18 +1,16 @@
-use crate::proto::orderbook::TradedPair;
-use crate::proto::orderbook_aggregator_client::OrderbookAggregatorClient;
-use crate::proto::{OrderBookRequest, Summary};
 use anyhow::Error;
-use tokio::sync::mpsc::channel as mpsc_channel;
-use tokio::time::Duration;
+use tokio::{sync::mpsc::channel as mpsc_channel, time::Duration};
 use tokio_stream::wrappers::ReceiverStream;
 use tonic::Request;
 use url::Url;
 
 pub mod proto {
     pub mod orderbook {
-        use std::cmp::Ordering;
-        use std::fmt::{Display, Formatter};
-        use std::hash::{Hash, Hasher};
+        use std::{
+            cmp::Ordering,
+            fmt::{Display, Formatter},
+            hash::{Hash, Hasher},
+        };
         tonic::include_proto!("orderbook");
 
         // These impl blocks are to allow me to use the generated types from the proto schema.
@@ -162,6 +160,7 @@ pub mod proto {
         }
     }
 
+    // Re-export the types
     pub use orderbook::{
         orderbook_aggregator_client, orderbook_aggregator_server, Empty, Level,
         Request as OrderBookRequest, Summary, TradedPair,

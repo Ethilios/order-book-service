@@ -15,6 +15,7 @@ impl Clone for BoxedExchange {
     }
 }
 
+/// [Exchange] is a unified interface which can be applied to any exchange
 pub(crate) trait Exchange {
     fn name(&self) -> String;
 
@@ -27,6 +28,8 @@ pub(crate) trait Exchange {
     fn clone_dyn(&self) -> BoxedExchange;
 }
 
+/// [OrderBook] is a unified interface which can be applied to an order book
+/// from any exchange regardless of format
 pub(crate) trait OrderBook {
     /// The name of the exchange that produced the orderbook
     fn source(&self) -> String;
@@ -70,7 +73,7 @@ pub(crate) enum Ordering {
     HighToLow,
 }
 
-// todo should this instead return Vec<Order> instead of Vec<Level>?
+/// Helper to sort a collection of orders and return a depth-constrained sub-set.
 pub(crate) fn sort_orders_to_depth(
     mut orders: Vec<Order>,
     ordering: Ordering,
@@ -94,6 +97,7 @@ pub(crate) fn sort_orders_to_depth(
         .collect()
 }
 
+/// Data returned from exchanges is often stringified, this helper aids in converting these to their Rust types.
 pub(crate) fn type_from_str<'de, D, T>(deserializer: D) -> Result<T, D::Error>
 where
     D: Deserializer<'de>,
@@ -109,9 +113,9 @@ where
 
 #[cfg(test)]
 mod tests {
-    use super::Order;
-    use crate::exchange::{sort_orders_to_depth, Ordering};
     use lazy_static::lazy_static;
+
+    use super::{sort_orders_to_depth, Order, Ordering};
     use shared_types::proto::Level;
 
     lazy_static! {
