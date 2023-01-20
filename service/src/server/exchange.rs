@@ -50,6 +50,7 @@ pub(crate) struct Order {
 }
 
 impl Order {
+    #[cfg(test)]
     pub(crate) fn new(price: f64, quantity: f64) -> Self {
         Self { price, quantity }
     }
