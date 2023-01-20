@@ -6,15 +6,17 @@ use tokio::sync::mpsc::{channel as mpsc_channel, Receiver};
 use tokio_tungstenite::{connect_async, tungstenite::Message};
 use url::Url;
 
-use crate::exchange::{best_orders_to_depth, Exchange, Order, OrderBook, Ordering};
-use crate::BoxedOrderbook;
-use shared_types::{proto::Level, TradedPair};
+use crate::exchange::{
+    sort_orders_to_depth, BoxedExchange, BoxedOrderbook, Exchange, Order, OrderBook, Ordering,
+};
+use shared_types::proto::{Level, TradedPair};
 
 const BITSTAMP: &str = "Bitstamp";
 const BITSTAMP_WSS_URL: &str = "wss://ws.bitstamp.net";
 const BTS_SUBSCRIBE: &str = "bts:subscribe";
 const ORDERBOOK_CHANNEL: &str = "order_book_";
 
+#[derive(Clone)]
 pub(crate) struct Bitstamp {
     root_ws_endpoint: Url,
 }
@@ -36,6 +38,12 @@ impl Exchange for Bitstamp {
         &self,
         traded_pair: &TradedPair,
     ) -> Result<Receiver<BoxedOrderbook>, Error> {
+        if !VALID_PAIRS.contains(&&*traded_pair.symbol_lower()) {
+            return Err(Error::msg(
+                "Requested traded pair is not supported by Bitstamp",
+            ));
+        }
+
         let (order_book_tx, order_book_rx) = mpsc_channel(100);
 
         let ws_url = self.root_ws_endpoint.to_string();
@@ -58,7 +66,7 @@ impl Exchange for Bitstamp {
                     if let Some(subscription_response) = ws_stream.next().await {
                         match subscription_response {
                             Ok(response) => {
-                                println!("Initial response: {}", response.to_string());
+                                println!("BITSTAMP ::Initial response: {}", response.to_string());
                             }
                             Err(error) => println!("WS Error: {:?}", error),
                         }
@@ -71,7 +79,13 @@ impl Exchange for Bitstamp {
                                 let order_book: BoxedOrderbook = Box::new(order_book);
                                 let _ = order_book_tx.send(order_book).await;
                             }
-                            Err(serde_err) => println!("\nSerde Error:\n{}", serde_err),
+                            Err(serde_err) => {
+                                if msg.is_ping() {
+                                    println!("Bitstamp sent ping");
+                                } else {
+                                    println!("\nSerde Error:\n{}", serde_err)
+                                }
+                            }
                         }
                     }
                 }
@@ -80,6 +94,10 @@ impl Exchange for Bitstamp {
         });
 
         Ok(order_book_rx)
+    }
+
+    fn clone_dyn(&self) -> BoxedExchange {
+        Box::new(self.clone())
     }
 }
 
@@ -145,10 +163,37 @@ impl OrderBook for LiveOrderBookResponse {
     }
 
     fn best_asks(&self, depth: usize) -> Vec<Level> {
-        best_orders_to_depth(self.data.asks.clone(), Ordering::LowToHigh, depth, BITSTAMP)
+        sort_orders_to_depth(self.data.asks.clone(), Ordering::LowToHigh, depth, BITSTAMP)
     }
 
     fn best_bids(&self, depth: usize) -> Vec<Level> {
-        best_orders_to_depth(self.data.bids.clone(), Ordering::HighToLow, depth, BITSTAMP)
+        sort_orders_to_depth(self.data.bids.clone(), Ordering::HighToLow, depth, BITSTAMP)
     }
 }
+
+// This has been taken from https://www.bitstamp.net/websocket/v2/
+// The issue is that regardless of what is requested Bitstamp seems to return a success message followed by an empty stream.
+// So I've added a short-term solution of hard-coded the supported traded pairs which can be checked against.
+const VALID_PAIRS: [&str; 175] = [
+    "btcusd", "btceur", "btcgbp", "btcpax", "gbpusd", "gbpeur", "eurusd", "xrpusd", "xrpeur",
+    "xrpbtc", "xrpgbp", "ltcbtc", "ltcusd", "ltceur", "ltcgbp", "ethbtc", "ethusd", "etheur",
+    "ethgbp", "ethpax", "bchusd", "bcheur", "bchbtc", "paxusd", "xlmbtc", "xlmusd", "xlmeur",
+    "xlmgbp", "linkusd", "linkeur", "linkgbp", "linkbtc", "omgusd", "omgeur", "omggbp", "omgbtc",
+    "usdcusd", "usdceur", "btcusdc", "ethusdc", "eth2eth", "aaveusd", "aaveeur", "aavebtc",
+    "batusd", "bateur", "umausd", "umaeur", "daiusd", "kncusd", "knceur", "mkrusd", "mkreur",
+    "zrxusd", "zrxeur", "gusdusd", "algousd", "algoeur", "algobtc", "audiousd", "audioeur",
+    "audiobtc", "crvusd", "crveur", "snxusd", "snxeur", "uniusd", "unieur", "unibtc", "yfiusd",
+    "yfieur", "compusd", "compeur", "grtusd", "grteur", "lrcusd", "lrceur", "usdtusd", "usdteur",
+    "usdcusdt", "btcusdt", "ethusdt", "xrpusdt", "eurteur", "eurtusd", "flrusd", "flreur",
+    "manausd", "manaeur", "maticusd", "maticeur", "sushiusd", "sushieur", "chzusd", "chzeur",
+    "enjusd", "enjeur", "hbarusd", "hbareur", "alphausd", "alphaeur", "axsusd", "axseur",
+    "sandusd", "sandeur", "storjusd", "storjeur", "adausd", "adaeur", "adabtc", "fetusd", "feteur",
+    "sklusd", "skleur", "slpusd", "slpeur", "sxpusd", "sxpeur", "sgbusd", "sgbeur", "avaxusd",
+    "avaxeur", "dydxusd", "dydxeur", "ftmusd", "ftmeur", "shibusd", "shibeur", "ampusd", "ampeur",
+    "ensusd", "enseur", "galausd", "galaeur", "perpusd", "perpeur", "wbtcbtc", "ctsiusd",
+    "ctsieur", "cvxusd", "cvxeur", "imxusd", "imxeur", "nexousd", "nexoeur", "antusd", "anteur",
+    "godsusd", "godseur", "radusd", "radeur", "bandusd", "bandeur", "injusd", "injeur", "rlyusd",
+    "rlyeur", "rndrusd", "rndreur", "vegausd", "vegaeur", "1inchusd", "1incheur", "solusd",
+    "soleur", "apeusd", "apeeur", "mplusd", "mpleur", "dotusd", "doteur", "nearusd", "neareur",
+    "dogeusd", "dogeeur",
+];

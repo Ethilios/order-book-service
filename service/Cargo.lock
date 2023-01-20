@@ -656,6 +656,7 @@ dependencies = [
  "anyhow",
  "futures",
  "futures-util",
+ "lazy_static",
  "prost",
  "serde",
  "serde_json",

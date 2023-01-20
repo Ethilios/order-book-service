@@ -7,13 +7,15 @@ use tokio::sync::mpsc::{channel as mpsc_channel, Receiver};
 use tokio_tungstenite::connect_async;
 use url::Url;
 
-use crate::exchange::{best_orders_to_depth, Exchange, Order, OrderBook, Ordering};
-use crate::BoxedOrderbook;
-use shared_types::{proto::Level, TradedPair};
+use crate::exchange::{
+    sort_orders_to_depth, BoxedExchange, BoxedOrderbook, Exchange, Order, OrderBook, Ordering,
+};
+use shared_types::proto::{Level, TradedPair};
 
 const BINANCE: &str = "Binance";
 const BINANCE_WSS_URL: &str = "wss://stream.binance.com:9443/ws";
 
+#[derive(Clone)]
 pub(crate) struct Binance {
     root_ws_endpoint: Url,
     depth: Depth,
@@ -55,13 +57,20 @@ impl Exchange for Binance {
         tokio::spawn(async move {
             match connect_async(&order_book_url).await {
                 Ok((mut ws_stream, _)) => {
+                    // let mut print_reducer = 0;
                     while let Some(Ok(msg)) = ws_stream.next().await {
-                        match serde_json::from_str::<PartialBookDepthResponse>(&msg.to_string()) {
+                        match serde_json::from_str::<PartialBookDepth>(&msg.to_string()) {
                             Ok(order_book) => {
                                 let order_book: BoxedOrderbook = Box::new(order_book);
                                 let _ = order_book_tx.send(order_book).await;
                             }
-                            Err(serde_err) => println!("\nSerde Error:\n{}", serde_err),
+                            Err(serde_err) => {
+                                if msg.is_ping() {
+                                    println!("Binance sent ping");
+                                } else {
+                                    println!("Serde Error: {}", serde_err);
+                                }
+                            }
                         }
                     }
                 }
@@ -71,9 +80,14 @@ impl Exchange for Binance {
 
         Ok(order_book_rx)
     }
+
+    fn clone_dyn(&self) -> BoxedExchange {
+        Box::new(self.clone())
+    }
 }
 
 /// Refers to how many orders should be returned in the data set.
+#[derive(Clone)]
 #[allow(unused)]
 pub(crate) enum Depth {
     Five,
@@ -92,6 +106,8 @@ impl Display for Depth {
 }
 
 /// Refers to how often the order book should be checked for updates.
+// #[allow(unused)]
+#[derive(Clone)]
 #[allow(unused)]
 pub(crate) enum UpdateSpeed {
     /// Represents a frequency of 10 updates per second.
@@ -110,7 +126,7 @@ impl Display for UpdateSpeed {
 }
 
 #[derive(Clone, Debug, Deserialize)]
-pub(crate) struct PartialBookDepthResponse {
+struct PartialBookDepth {
     #[serde(rename = "lastUpdateId")]
     #[allow(unused)]
     last_update_id: u64,
@@ -118,7 +134,7 @@ pub(crate) struct PartialBookDepthResponse {
     asks: Vec<Order>,
 }
 
-impl OrderBook for PartialBookDepthResponse {
+impl OrderBook for PartialBookDepth {
     fn source(&self) -> String {
         BINANCE.to_string()
     }
@@ -128,10 +144,20 @@ impl OrderBook for PartialBookDepthResponse {
     }
 
     fn best_asks(&self, depth: usize) -> Vec<Level> {
-        best_orders_to_depth(self.asks.clone(), Ordering::LowToHigh, depth, BINANCE)
+        sort_orders_to_depth(
+            self.asks.clone(),
+            Ordering::LowToHigh,
+            depth,
+            &self.source(),
+        )
     }
 
     fn best_bids(&self, depth: usize) -> Vec<Level> {
-        best_orders_to_depth(self.bids.clone(), Ordering::HighToLow, depth, BINANCE)
+        sort_orders_to_depth(
+            self.bids.clone(),
+            Ordering::HighToLow,
+            depth,
+            &self.source(),
+        )
     }
 }
