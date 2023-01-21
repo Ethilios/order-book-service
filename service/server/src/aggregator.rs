@@ -1,19 +1,23 @@
-use std::collections::HashMap;
+use std::{collections::HashMap, sync::Arc};
 
+use anyhow::Error;
 use futures_util::{stream::SelectAll, StreamExt};
 use tokio::sync::broadcast::{channel as broadcast_channel, Sender as BroadcastSender};
 use tokio_stream::wrappers::ReceiverStream;
+
+use order_book_service_types::proto::{Summary, TradedPair};
 
 use crate::{
     exchange::{BoxedExchange, BoxedOrderbook},
     grpc_server::SummaryReceiver,
 };
-use shared_types::proto::{Summary, TradedPair};
+
+type SummarySender = BroadcastSender<Result<Summary, Arc<Error>>>;
 
 pub(crate) struct OrderbookAggregator {
     source_exchanges: Vec<BoxedExchange>,
     traded_pair: TradedPair,
-    summary_sender: BroadcastSender<Summary>,
+    summary_sender: SummarySender,
 }
 
 impl OrderbookAggregator {
@@ -59,7 +63,13 @@ impl OrderbookAggregator {
 
         // NOTE: is connection to a single exchange acceptable?
         if orderbook_stream.len() < 2 {
-            println!("Unable to connect to more than one exchange, exiting...");
+            let err_msg = format!(
+                "Unable to connect to more than one exchange, aggregation not possible for {}",
+                self.traded_pair
+            );
+            println!("{}", err_msg);
+            // Inform connected clients of the failure
+            let _ = self.summary_sender.send(Err(Arc::new(Error::msg(err_msg))));
             return;
         }
 
@@ -86,7 +96,7 @@ impl OrderbookAggregator {
                     merge_orderbooks_into_summary(orderbooks.drain().map(|(_, value)| value));
 
                 // Send the summary to all subscribers
-                let _ = self.summary_sender.send(summary);
+                let _ = self.summary_sender.send(Ok(summary));
             }
         }
     }
@@ -125,11 +135,12 @@ pub(crate) fn merge_orderbooks_into_summary(
 mod tests {
     use lazy_static::lazy_static;
 
+    use order_book_service_types::proto::{Level, Summary};
+
     use crate::{
         aggregator::merge_orderbooks_into_summary,
         exchange::{sort_orders_to_depth, BoxedOrderbook, Order, OrderBook, Ordering},
     };
-    use shared_types::proto::{Level, Summary};
 
     struct TestOrderbook {
         id: String,

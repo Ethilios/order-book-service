@@ -1,10 +1,12 @@
 pub mod proto {
     pub mod orderbook {
+        use crate::proto::OrderBookRequest;
         use std::{
             cmp::Ordering,
             fmt::{Display, Formatter},
             hash::{Hash, Hasher},
         };
+        use tonic::IntoRequest;
         tonic::include_proto!("orderbook");
 
         // These impl blocks are to allow me to use the generated types from the proto schema.
@@ -129,7 +131,7 @@ pub mod proto {
             fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
                 writeln!(f, "[")?;
                 self.0.iter().fold(Ok(()), |result, level| {
-                    result.and_then(|_| writeln!(f, "\t{},", level))
+                    result.and_then(|_| writeln!(f, "\t{level},"))
                 })?;
                 write!(f, "]")
             }
@@ -150,6 +152,20 @@ pub mod proto {
                     Levels::from(&self.asks),
                     Levels::from(&self.bids)
                 )
+            }
+        }
+
+        impl IntoRequest<OrderBookRequest> for TradedPair {
+            fn into_request(self) -> tonic::Request<OrderBookRequest> {
+                tonic::Request::new(self.into())
+            }
+        }
+
+        impl From<TradedPair> for OrderBookRequest {
+            fn from(value: TradedPair) -> Self {
+                Self {
+                    traded_pair: Some(value),
+                }
             }
         }
     }

@@ -10,7 +10,7 @@ use url::Url;
 use crate::exchange::{
     sort_orders_to_depth, BoxedExchange, BoxedOrderbook, Exchange, Order, OrderBook, Ordering,
 };
-use shared_types::proto::{Level, TradedPair};
+use order_book_service_types::proto::{Level, TradedPair};
 
 const BINANCE: &str = "Binance";
 const BINANCE_WSS_URL: &str = "wss://stream.binance.com:9443/ws";

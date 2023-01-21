@@ -1,0 +1,15 @@
+[package]
+name = "order-book-service-client"
+version = "0.1.0"
+edition = "2021"
+
+[lib]
+crate-type = ["dylib"]
+
+[dependencies]
+anyhow = "1.0.68"
+order-book-service-types = { path = "../common" }
+tokio = { version = "1.24.0", features = ["full"] }
+tokio-stream = "0.1.11"
+tonic = "0.8.3"
+url = "2.3.1"

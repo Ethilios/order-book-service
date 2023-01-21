@@ -38,7 +38,7 @@ async fn run() {
     let request_handler_handle = tokio::spawn(async move {
         // Await new subscription requests
         while let Some((requested_pair, summary_receiver_sender)) = new_subscriber_rx.recv().await {
-            println!("MAIN :: New request for {}", requested_pair);
+            println!("MAIN :: New request for {requested_pair}");
 
             // There is no aggregator for the requested pair - a new one needs to be created.
             let new_aggregator = OrderbookAggregator::new(&exchanges, requested_pair.clone());
@@ -54,4 +54,38 @@ async fn run() {
 
     // todo this result should be handled to
     let _ = tokio::join!(grpc_server_handle, request_handler_handle);
+}
+
+#[cfg(test)]
+mod tests {
+    use futures_util::StreamExt;
+    use order_book_service_client::{connect_to_summary_service, ConnectionSettings};
+    use order_book_service_types::proto::TradedPair;
+    use std::time::Duration;
+    use url::Url;
+
+    use crate::run;
+
+    #[tokio::test]
+    async fn should_provide_summaries_via_grpc() {
+        tokio::spawn(run());
+
+        let connection_settings = ConnectionSettings {
+            server_address: Url::parse("http://0.0.0.0:3030").unwrap(),
+            traded_pair: TradedPair::new("ETH".to_string(), "BTC".to_string()),
+            max_attempts: 10,
+            delay_between_attempts: Duration::from_secs(1),
+        };
+
+        let mut summary_receiver = connect_to_summary_service(connection_settings).await;
+        let mut count = 0;
+
+        while let Some(summary) = summary_receiver.next().await {
+            count += 1;
+            println!("Summary: {summary}");
+            if count >= 5 {
+                break;
+            }
+        }
+    }
 }

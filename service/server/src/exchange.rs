@@ -4,7 +4,7 @@ use anyhow::Error;
 use serde::{de, Deserialize, Deserializer};
 use tokio::sync::mpsc::Receiver;
 
-use shared_types::proto::{Level, TradedPair};
+use order_book_service_types::proto::{Level, TradedPair};
 
 pub(crate) type BoxedOrderbook = Box<dyn OrderBook + Send>;
 pub(crate) type BoxedExchange = Box<dyn Exchange + Send>;
@@ -116,8 +116,9 @@ where
 mod tests {
     use lazy_static::lazy_static;
 
+    use order_book_service_types::proto::Level;
+
     use super::{sort_orders_to_depth, Order, Ordering};
-    use shared_types::proto::Level;
 
     lazy_static! {
         static ref ORDERS_LOW_TO_HIGH: Vec<Order> = vec![

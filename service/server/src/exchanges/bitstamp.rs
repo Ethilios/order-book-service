@@ -10,7 +10,7 @@ use url::Url;
 use crate::exchange::{
     sort_orders_to_depth, BoxedExchange, BoxedOrderbook, Exchange, Order, OrderBook, Ordering,
 };
-use shared_types::proto::{Level, TradedPair};
+use order_book_service_types::proto::{Level, TradedPair};
 
 const BITSTAMP: &str = "Bitstamp";
 const BITSTAMP_WSS_URL: &str = "wss://ws.bitstamp.net";

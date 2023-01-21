@@ -1,4 +1,6 @@
+use anyhow::Error;
 use std::collections::HashMap;
+use std::sync::Arc;
 
 use tokio::sync::{
     broadcast::Receiver as BroadcastReceiver,
@@ -9,12 +11,12 @@ use tokio::sync::{
 use tokio_stream::wrappers::ReceiverStream;
 use tonic::{transport::Server, Request, Response, Status};
 
-use shared_types::proto::{
+use order_book_service_types::proto::{
     orderbook_aggregator_server::{OrderbookAggregator, OrderbookAggregatorServer},
     OrderBookRequest, Summary, TradedPair,
 };
 
-pub(crate) type SummaryReceiver = BroadcastReceiver<Summary>;
+pub(crate) type SummaryReceiver = BroadcastReceiver<Result<Summary, Arc<Error>>>;
 type NewSubscriberNotifier = MpscSender<(TradedPair, OneshotSender<SummaryReceiver>)>;
 
 /// The [OrderbookService]'s role is to emit a stream of Summary data.
@@ -43,31 +45,19 @@ impl OrderbookAggregator for OrderbookService {
             ))?;
 
         // Acquire a lock on the HashMap of receivers
-        // todo holding the lock?
         let mut map_lock = self.summary_receivers.lock().await;
 
         // There is already a channel for the requested traded pair
         if let Some(summary_receiver) = map_lock.get(&requested_pair) {
-            let mut new_subscription = summary_receiver.resubscribe();
+            let new_subscription = summary_receiver.resubscribe();
 
             // This channel is used between the service producing the Summary and the task that wraps it in a Result
             let (summary_tx, summary_rx) = mpsc_channel(100);
 
-            tokio::spawn(async move {
-                while let Ok(summary) = new_subscription.recv().await {
-                    let _ = summary_tx.send(Ok(summary)).await;
-                }
-                let _ = summary_tx
-                    .send(Err(Status::unknown(
-                        "The service failed to provide a response",
-                    )))
-                    .await;
-            });
+            tokio::spawn(handle_subscription_stream(new_subscription, summary_tx));
 
             return Ok(Response::new(ReceiverStream::new(summary_rx)));
         }
-
-        // drops the lock here
 
         // This is the first time the requested pair has been received
         // The server needs to request that the service spins up a new aggregator to start providing Summarys
@@ -86,9 +76,7 @@ impl OrderbookAggregator for OrderbookService {
             .map_err(|recv_err| Status::from_error(recv_err.into()))?;
 
         // Create a new subscription for the client
-        let mut new_subscription = summary_receiver.resubscribe();
-
-        // acquire the lock - research
+        let new_subscription = summary_receiver.resubscribe();
 
         // Push the new receiver to the HashMap of summary receivers
         map_lock.insert(requested_pair, summary_receiver);
@@ -98,16 +86,7 @@ impl OrderbookAggregator for OrderbookService {
 
         // This task takes the sending side of the summary channel and populates it with Summary events as it receives OrderBooks from the server-side subscription.
         // todo handle duplication
-        tokio::spawn(async move {
-            while let Ok(summary) = new_subscription.recv().await {
-                let _ = summary_tx.send(Ok(summary)).await;
-            }
-            let _ = summary_tx
-                .send(Err(Status::unknown(
-                    "The service failed to provide a response",
-                )))
-                .await;
-        });
+        tokio::spawn(handle_subscription_stream(new_subscription, summary_tx));
 
         Ok(Response::new(ReceiverStream::new(summary_rx)))
     }
@@ -129,4 +108,25 @@ pub(crate) async fn start_server(new_subscriber_notifier: NewSubscriberNotifier)
         .serve(server_addr)
         .await
         .expect("Service ended");
+}
+
+async fn handle_subscription_stream(
+    mut rx: SummaryReceiver,
+    tx: MpscSender<Result<Summary, Status>>,
+) {
+    while let Ok(summary_res) = rx.recv().await {
+        match summary_res {
+            Ok(summary) => {
+                let _ = tx.send(Ok(summary)).await;
+            }
+            Err(err) => {
+                let _ = tx.send(Err(Status::internal(err.to_string()))).await;
+            }
+        }
+    }
+    let _ = tx
+        .send(Err(Status::unavailable(
+            "The service failed to provide a response",
+        )))
+        .await;
 }
