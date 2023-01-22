@@ -3,6 +3,7 @@ use std::{fmt::Debug, str::FromStr};
 use anyhow::Error;
 use serde::{de, Deserialize, Deserializer};
 use tokio::sync::mpsc::Receiver;
+use tokio::time::Instant;
 
 use order_book_service_types::proto::{Level, TradedPair};
 
@@ -22,7 +23,7 @@ pub(crate) trait Exchange {
     fn stream_order_book_for_pair(
         &self,
         traded_pair: &TradedPair,
-    ) -> Result<Receiver<BoxedOrderbook>, Error>;
+    ) -> Result<Receiver<(BoxedOrderbook, Instant)>, Error>;
 
     // This method is required to allow the trait object to be Clone
     fn clone_dyn(&self) -> BoxedExchange;

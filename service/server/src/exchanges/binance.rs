@@ -4,6 +4,7 @@ use anyhow::Error;
 use futures_util::StreamExt;
 use serde::Deserialize;
 use tokio::sync::mpsc::{channel as mpsc_channel, Receiver};
+use tokio::time::Instant;
 use tokio_tungstenite::connect_async;
 use url::Url;
 
@@ -40,7 +41,7 @@ impl Exchange for Binance {
     fn stream_order_book_for_pair(
         &self,
         traded_pair: &TradedPair,
-    ) -> Result<Receiver<BoxedOrderbook>, Error> {
+    ) -> Result<Receiver<(BoxedOrderbook, Instant)>, Error> {
         let (order_book_tx, order_book_rx) = mpsc_channel(100);
 
         let order_book_url = Url::parse(
@@ -59,22 +60,23 @@ impl Exchange for Binance {
                 Ok((mut ws_stream, _)) => {
                     // let mut print_reducer = 0;
                     while let Some(Ok(msg)) = ws_stream.next().await {
+                        let received = Instant::now();
                         match serde_json::from_str::<PartialBookDepth>(&msg.to_string()) {
                             Ok(order_book) => {
                                 let order_book: BoxedOrderbook = Box::new(order_book);
-                                let _ = order_book_tx.send(order_book).await;
+                                let _ = order_book_tx.send((order_book, received)).await;
                             }
                             Err(serde_err) => {
                                 if msg.is_ping() {
                                     println!("Binance sent ping");
                                 } else {
-                                    println!("Serde Error: {}", serde_err);
+                                    println!("Serde Error: {serde_err}");
                                 }
                             }
                         }
                     }
                 }
-                Err(ws_err) => println!("\nWebsocket Error:\n{:?}", ws_err),
+                Err(ws_err) => println!("\nWebsocket Error:\n{ws_err}"),
             }
         });
 

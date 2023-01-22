@@ -4,6 +4,7 @@ use anyhow::Error;
 use futures_util::{SinkExt, StreamExt};
 use serde::{Deserialize, Serialize};
 use tokio::sync::mpsc::{channel as mpsc_channel, Receiver};
+use tokio::time::Instant;
 use tokio_tungstenite::{connect_async, tungstenite::Message};
 use url::Url;
 
@@ -38,7 +39,7 @@ impl Exchange for Bitstamp {
     fn stream_order_book_for_pair(
         &self,
         traded_pair: &TradedPair,
-    ) -> Result<Receiver<BoxedOrderbook>, Error> {
+    ) -> Result<Receiver<(BoxedOrderbook, Instant)>, Error> {
         if !VALID_PAIRS.contains(&&*traded_pair.symbol_lower()) {
             return Err(Error::msg(
                 "Requested traded pair is not supported by Bitstamp",
@@ -53,7 +54,7 @@ impl Exchange for Bitstamp {
         tokio::spawn(async move {
             match connect_async(ws_url).await {
                 Ok((mut ws_stream, _)) => {
-                    let channel = Channel::new(format!("{}{}", ORDERBOOK_CHANNEL, symbol));
+                    let channel = Channel::new(format!("{ORDERBOOK_CHANNEL}{symbol}"));
                     let channel_sub_request = ChannelSubscriptionRequest::new(channel.clone());
 
                     ws_stream
@@ -67,30 +68,31 @@ impl Exchange for Bitstamp {
                     if let Some(subscription_response) = ws_stream.next().await {
                         match subscription_response {
                             Ok(response) => {
-                                println!("BITSTAMP ::Initial response: {}", response.to_string());
+                                println!("BITSTAMP ::Initial response: {response}");
                             }
-                            Err(error) => println!("WS Error: {:?}", error),
+                            Err(error) => println!("WS Error: {error}"),
                         }
                     }
 
                     // Handle ongoing stream
                     while let Some(Ok(msg)) = ws_stream.next().await {
+                        let received = Instant::now();
                         match serde_json::from_str::<LiveOrderBookResponse>(&msg.to_string()) {
                             Ok(order_book) => {
                                 let order_book: BoxedOrderbook = Box::new(order_book);
-                                let _ = order_book_tx.send(order_book).await;
+                                let _ = order_book_tx.send((order_book, received)).await;
                             }
                             Err(serde_err) => {
                                 if msg.is_ping() {
                                     println!("Bitstamp sent ping");
                                 } else {
-                                    println!("\nSerde Error:\n{}", serde_err)
+                                    println!("\nSerde Error:\n{serde_err}")
                                 }
                             }
                         }
                     }
                 }
-                Err(ws_err) => println!("\nWebsocket Error:\n{:?}", ws_err),
+                Err(ws_err) => println!("\nWebsocket Error:\n{ws_err}"),
             }
         });
 

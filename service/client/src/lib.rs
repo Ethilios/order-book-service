@@ -11,6 +11,10 @@ use order_book_service_types::proto::{
 
 type SummaryResult = Result<Summary, Status>;
 
+/// Sets out how the client should connect to the service.  
+/// If the client is unable to connect then it will act according to the below:
+/// - `max_attempts` is how many times the client should attempt to connect.
+/// - `delay_between_attempts` is how long to wait before making a new attempt to connect.
 pub struct ConnectionSettings {
     pub server_address: Url,
     pub traded_pair: TradedPair,
@@ -18,7 +22,13 @@ pub struct ConnectionSettings {
     pub delay_between_attempts: Duration,
 }
 
-pub async fn connect_to_summary_service(settings: ConnectionSettings) -> ReceiverStream<Summary> {
+/// Connect to the service, returning a Stream of [Summary]s (or [Status] in the Err case).
+/// Will make repeated attempts to connect as per the [`settings`](ConnectionSettings) provided.  
+///
+/// Once the internal sender hangs up or the `max_attempts` are exhausted, an error status is sent to the client receiver.
+pub async fn connect_to_summary_service(
+    settings: ConnectionSettings,
+) -> ReceiverStream<SummaryResult> {
     let mut attempts = 0;
 
     let (summary_tx, summary_rx) = mpsc::channel(300);
@@ -33,12 +43,23 @@ pub async fn connect_to_summary_service(settings: ConnectionSettings) -> Receive
             )
             .await
             {
-                Ok(mut summary_stream) => {
-                    while let Ok(Some(summary)) = summary_stream.message().await {
-                        attempts = 0;
-                        let _ = summary_tx.send(summary).await;
+                Ok(mut summary_stream) => loop {
+                    let msg_result = summary_stream.message().await;
+                    match msg_result {
+                        Ok(Some(summary)) => {
+                            attempts = 0;
+                            let _ = summary_tx.send(Ok(summary)).await;
+                        }
+                        Ok(None) => {
+                            // Ok(None) means the sender has closed the connection
+                            break;
+                        }
+                        Err(status) => {
+                            println!("Received status: {status}");
+                            let _ = summary_tx.send(Err(status)).await;
+                        }
                     }
-                }
+                },
                 Err(grpc_error) => {
                     println!("Error connecting to server: {grpc_error}");
                     println!("Retrying...\t({attempts}/{})", settings.max_attempts);
@@ -46,6 +67,10 @@ pub async fn connect_to_summary_service(settings: ConnectionSettings) -> Receive
                 }
             }
         }
+
+        let _ = summary_tx
+            .send(Err(Status::unavailable("The service is unavailable")))
+            .await;
     });
 
     summary_rx.into()

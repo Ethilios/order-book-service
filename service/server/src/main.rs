@@ -32,7 +32,7 @@ async fn run() {
     let (new_subscriber_tx, mut new_subscriber_rx) = mpsc_channel(100);
 
     // Spin up the gRPC server
-    let grpc_server_handle = tokio::spawn(start_server(new_subscriber_tx));
+    let grpc_server_handle = tokio::spawn(start_server(new_subscriber_tx, 3030));
 
     // Handle requests from the gRPC server
     let request_handler_handle = tokio::spawn(async move {
@@ -80,7 +80,7 @@ mod tests {
         let mut summary_receiver = connect_to_summary_service(connection_settings).await;
         let mut count = 0;
 
-        while let Some(summary) = summary_receiver.next().await {
+        while let Some(Ok(summary)) = summary_receiver.next().await {
             count += 1;
             println!("Summary: {summary}");
             if count >= 5 {

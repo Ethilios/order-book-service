@@ -1,8 +1,10 @@
+use std::time::Duration;
 use std::{collections::HashMap, sync::Arc};
 
 use anyhow::Error;
 use futures_util::{stream::SelectAll, StreamExt};
 use tokio::sync::broadcast::{channel as broadcast_channel, Sender as BroadcastSender};
+use tokio::time::Instant;
 use tokio_stream::wrappers::ReceiverStream;
 
 use order_book_service_types::proto::{Summary, TradedPair};
@@ -48,7 +50,7 @@ impl OrderbookAggregator {
                         break;
                     }
                     Err(err) => {
-                        println!("{}", err);
+                        println!("{err}");
                         println!(
                             "Unable to connect to {} for pair {}. Retrying...({}/{})",
                             exchange.name(),
@@ -67,7 +69,7 @@ impl OrderbookAggregator {
                 "Unable to connect to more than one exchange, aggregation not possible for {}",
                 self.traded_pair
             );
-            println!("{}", err_msg);
+            println!("{err_msg}");
             // Inform connected clients of the failure
             let _ = self.summary_sender.send(Err(Arc::new(Error::msg(err_msg))));
             return;
@@ -76,7 +78,7 @@ impl OrderbookAggregator {
         let mut orderbooks = HashMap::new();
 
         let mut print_reducer = 0;
-        while let Some(orderbook) = orderbook_stream.next().await {
+        while let Some((orderbook, received)) = orderbook_stream.next().await {
             print_reducer += 1;
 
             if print_reducer == 0 || print_reducer % 7 == 0 {
@@ -87,13 +89,27 @@ impl OrderbookAggregator {
                 );
             }
 
-            orderbooks.insert(orderbook.source(), orderbook);
+            orderbooks.insert(orderbook.source(), (orderbook, received));
 
             // If the buffer has more than one orderbook stored then we can generate a summary - this also clears the map to prevent stale data carrying over.
             // todo check timestamps are "close enough" - could be another config value for tolerance
             if orderbooks.keys().len() > 1 {
+                // todo
+
+                // let timestamped_orderbooks = orderbooks
+                //     .drain()
+                //     .map(|(_, timestamped_orderbook)| timestamped_orderbook)
+                //     .collect::<Vec<(BoxedOrderbook, Instant)>>();
+
+                // let tolerance = Duration::from_secs(1);
+                //
+                // let avg_received = timestamped_orderbooks
+                //     .iter()
+                //     .map(|(_, received)| received)
+                //     .sum();
+
                 let summary =
-                    merge_orderbooks_into_summary(orderbooks.drain().map(|(_, value)| value));
+                    merge_orderbooks_into_summary(orderbooks.drain().map(|(_, value)| value.0));
 
                 // Send the summary to all subscribers
                 let _ = self.summary_sender.send(Ok(summary));
