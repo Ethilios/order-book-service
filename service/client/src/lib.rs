@@ -1,3 +1,5 @@
+extern crate core;
+
 use anyhow::{Context, Error};
 use std::time::Duration;
 use tokio::sync::mpsc;
@@ -91,4 +93,145 @@ async fn connect_to_server_for_pair(
         .into_inner();
 
     Ok(orderbook_stream)
+}
+
+pub mod ffi {
+    use crate::ConnectionSettings;
+    use libc::{c_char, c_double, c_int, size_t};
+    use once_cell::sync::Lazy;
+    use order_book_service_types::proto::TradedPair;
+    use std::ffi::CStr;
+    use std::sync::Mutex;
+    use std::time::Duration;
+    use tokio::runtime::Runtime;
+    use tokio_stream::StreamExt;
+    use url::Url;
+
+    static RUNTIME: Lazy<Mutex<Option<Runtime>>> = Lazy::new(|| Mutex::new(None));
+
+    #[repr(C)]
+    pub struct CLevel {
+        exchange: *const c_char,
+        price: c_double,
+        amount: c_double,
+    }
+
+    #[repr(C)]
+    pub struct CSummary {
+        spread: c_double,
+        bids: *const CLevel,
+        bids_length: size_t,
+        asks: *const CLevel,
+        asks_length: size_t,
+    }
+
+    fn setup_runtime() {
+        let mut runtime = RUNTIME.lock().expect("Should lock");
+        *runtime = Some(Runtime::new().expect("Should create tokio runtime"));
+    }
+
+    fn teardown_runtime() {
+        let mut runtime = RUNTIME.lock().expect("should lock");
+        *runtime = None;
+    }
+
+    pub unsafe extern "C" fn connect_to_summary_service(
+        server_address: *const c_char,
+        token_one_symbol: *const c_char,
+        token_two_symbol: *const c_char,
+        max_attempts: c_int,
+        delay_between_attempts_millis: c_int,
+        callback: extern "C" fn(*const CSummary),
+    ) -> c_int {
+        setup_runtime();
+
+        if let Some(runtime) = RUNTIME.lock().expect("Should lock").as_mut() {
+            let server_address_str =
+                convert_to_string(server_address).expect("Should convert to string");
+            let url = Url::parse(server_address_str).expect("Should parse url");
+            let traded_pair = TradedPair::new(
+                convert_to_string(token_one_symbol).expect("Should convert to string"),
+                convert_to_string(token_two_symbol).expect("Should convert to string"),
+            );
+            let max_attempts = max_attempts as usize;
+            let delay_between_attempts =
+                Duration::from_millis(delay_between_attempts_millis as u64);
+
+            let connection_settings = ConnectionSettings {
+                server_address: url,
+                traded_pair,
+                max_attempts,
+                delay_between_attempts,
+            };
+
+            runtime.block_on(async move {
+                let mut recv_stream = super::connect_to_summary_service(connection_settings).await;
+
+                while let Some(Ok(mut summary)) = recv_stream.next().await {
+                    let c_level_bids = summary
+                        .bids
+                        .iter_mut()
+                        .map(|level| {
+                            // Append nul character for CStr
+                            level.exchange.push(0.into());
+
+                            CLevel {
+                                exchange: CStr::from_bytes_with_nul(level.exchange.as_ref())
+                                    .expect("Should parse to CString")
+                                    .as_ptr(),
+                                price: level.price,
+                                amount: level.amount,
+                            }
+                        })
+                        .collect::<Vec<CLevel>>();
+
+                    let c_level_asks = summary
+                        .asks
+                        .iter_mut()
+                        .map(|level| {
+                            // Append nul character for CStr
+                            level.exchange.push(0.into());
+
+                            CLevel {
+                                exchange: CStr::from_bytes_with_nul(level.exchange.as_ref())
+                                    .expect("Should parse to CString")
+                                    .as_ptr(),
+                                price: level.price,
+                                amount: level.amount,
+                            }
+                        })
+                        .collect::<Vec<CLevel>>();
+
+                    let c_summary = CSummary {
+                        spread: summary.spread as c_double,
+                        bids: c_level_bids.as_ptr(),
+                        bids_length: c_level_bids.len(),
+                        asks: c_level_asks.as_ptr(),
+                        asks_length: c_level_asks.len(),
+                    };
+
+                    callback(&c_summary as *const CSummary)
+                }
+            });
+
+            teardown_runtime();
+            0
+        } else {
+            teardown_runtime();
+            3
+        }
+    }
+
+    unsafe fn convert_to_string(c_string: *const c_char) -> Result<&'static str, u8> {
+        if c_string.is_null() {
+            return Err(1);
+        }
+        let raw = CStr::from_ptr(c_string);
+        let str = match raw.to_str() {
+            Ok(s) => s,
+            Err(_) => return Err(1),
+        };
+
+        Ok(str)
+    }
 }
