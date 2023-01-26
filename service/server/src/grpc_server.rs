@@ -1,4 +1,4 @@
-use anyhow::Error;
+use anyhow::{Context, Error};
 use std::collections::HashMap;
 use std::net::SocketAddr;
 use std::sync::Arc;
@@ -81,6 +81,8 @@ impl OrderbookAggregator for OrderbookService {
         // Push the new receiver to the HashMap of summary receivers
         map_lock.insert(requested_pair, summary_receiver);
 
+        drop(map_lock);
+
         // The receiving side of this channel will be returned to the client as a stream.
         let (client_channel_tx, client_channel_rx) = mpsc_channel(100);
 
@@ -94,7 +96,10 @@ impl OrderbookAggregator for OrderbookService {
     }
 }
 
-pub(crate) async fn start_server(new_subscriber_notifier: NewSubscriberNotifier, port: u16) {
+pub(crate) async fn start_server(
+    new_subscriber_notifier: NewSubscriberNotifier,
+    port: u16,
+) -> Result<(), Error> {
     let server_addr = SocketAddr::from(([0, 0, 0, 0], port));
 
     let order_book = OrderbookService {
@@ -108,7 +113,7 @@ pub(crate) async fn start_server(new_subscriber_notifier: NewSubscriberNotifier,
         .add_service(svc)
         .serve(server_addr)
         .await
-        .expect("Service ended");
+        .context("gRPC server shutdown")
 }
 
 async fn handle_subscription_stream(

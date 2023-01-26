@@ -654,6 +654,8 @@ name = "order-book-service-client"
 version = "0.1.0"
 dependencies = [
  "anyhow",
+ "libc",
+ "once_cell",
  "order-book-service-types",
  "tokio",
  "tokio-stream",

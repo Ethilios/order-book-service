@@ -28,8 +28,11 @@ pub mod proto {
         }
 
         impl TradedPair {
-            pub fn new(first: String, second: String) -> Self {
-                TradedPair { first, second }
+            pub fn new(first: &'static str, second: &'static str) -> Self {
+                TradedPair {
+                    first: first.to_string(),
+                    second: second.to_string(),
+                }
             }
 
             pub fn symbol_lower(&self) -> String {

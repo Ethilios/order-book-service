@@ -32,15 +32,15 @@ impl Bitstamp {
 }
 
 impl Exchange for Bitstamp {
-    fn name(&self) -> String {
-        BITSTAMP.to_string()
+    fn name(&self) -> &'static str {
+        BITSTAMP
     }
 
     fn stream_order_book_for_pair(
         &self,
         traded_pair: &TradedPair,
     ) -> Result<Receiver<(BoxedOrderbook, Instant)>, Error> {
-        if !VALID_PAIRS.contains(&&*traded_pair.symbol_lower()) {
+        if !VALID_PAIRS.contains(&traded_pair.symbol_lower().as_str()) {
             return Err(Error::msg(
                 "Requested traded pair is not supported by Bitstamp",
             ));
@@ -157,8 +157,8 @@ pub(crate) struct LiveOrderBookData {
 }
 
 impl OrderBook for LiveOrderBookResponse {
-    fn source(&self) -> String {
-        BITSTAMP.to_string()
+    fn source(&self) -> &'static str {
+        BITSTAMP
     }
 
     fn spread(&self) -> f64 {

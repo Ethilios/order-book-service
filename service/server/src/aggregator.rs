@@ -63,7 +63,6 @@ impl OrderbookAggregator {
             }
         }
 
-        // NOTE: is connection to a single exchange acceptable?
         if orderbook_stream.len() < 2 {
             let err_msg = format!(
                 "Unable to connect to more than one exchange, aggregation not possible for {}",
@@ -159,24 +158,20 @@ mod tests {
     };
 
     struct TestOrderbook {
-        id: String,
+        id: &'static str,
         asks: Vec<Order>,
         bids: Vec<Order>,
     }
 
     impl TestOrderbook {
-        fn new(id: &str, asks: Vec<Order>, bids: Vec<Order>) -> Self {
-            Self {
-                id: id.to_string(),
-                asks,
-                bids,
-            }
+        fn new(id: &'static str, asks: Vec<Order>, bids: Vec<Order>) -> Self {
+            Self { id, asks, bids }
         }
     }
 
     impl OrderBook for TestOrderbook {
-        fn source(&self) -> String {
-            self.id.clone()
+        fn source(&self) -> &'static str {
+            self.id
         }
 
         fn spread(&self) -> f64 {

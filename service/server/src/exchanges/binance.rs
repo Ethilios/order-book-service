@@ -34,8 +34,8 @@ impl Binance {
 }
 
 impl Exchange for Binance {
-    fn name(&self) -> String {
-        BINANCE.to_string()
+    fn name(&self) -> &'static str {
+        BINANCE
     }
 
     fn stream_order_book_for_pair(
@@ -58,7 +58,6 @@ impl Exchange for Binance {
         tokio::spawn(async move {
             match connect_async(&order_book_url).await {
                 Ok((mut ws_stream, _)) => {
-                    // let mut print_reducer = 0;
                     while let Some(Ok(msg)) = ws_stream.next().await {
                         let received = Instant::now();
                         match serde_json::from_str::<PartialBookDepth>(&msg.to_string()) {
@@ -137,8 +136,8 @@ struct PartialBookDepth {
 }
 
 impl OrderBook for PartialBookDepth {
-    fn source(&self) -> String {
-        BINANCE.to_string()
+    fn source(&self) -> &'static str {
+        BINANCE
     }
 
     fn spread(&self) -> f64 {

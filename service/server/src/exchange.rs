@@ -18,7 +18,7 @@ impl Clone for BoxedExchange {
 
 /// [Exchange] is a unified interface which can be applied to any exchange
 pub(crate) trait Exchange {
-    fn name(&self) -> String;
+    fn name(&self) -> &'static str;
 
     fn stream_order_book_for_pair(
         &self,
@@ -33,7 +33,7 @@ pub(crate) trait Exchange {
 /// from any exchange regardless of format
 pub(crate) trait OrderBook {
     /// The name of the exchange that produced the orderbook
-    fn source(&self) -> String;
+    fn source(&self) -> &'static str;
     /// The difference between the best ask and best bid
     fn spread(&self) -> f64;
     /// The best [depth] asks - ordered High -> Low
@@ -76,6 +76,7 @@ pub(crate) enum Ordering {
 }
 
 /// Helper to sort a collection of orders and return a depth-constrained sub-set.
+/// todo convert to default impl
 pub(crate) fn sort_orders_to_depth(
     mut orders: Vec<Order>,
     ordering: Ordering,
