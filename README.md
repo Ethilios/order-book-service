@@ -1,48 +1,104 @@
-### order-book-service
+## Orderbook Service
 
-## Overview
+The orderbook service aggregates real-time data from exchanges to produce summaries.
 
-The service should connect concurrently to websocket feeds from the configured exchanges.
-From those feeds it should retrieve order books for the configured traded pair of currencies.
-Then the received order books should be merged into a single combined order book.
-From this order book the following can be collated:
- - Spread
- - Top 10 bids
- - Top 10 asks
+### Project Structure
+The service is written in Rust and organised in a Cargo workspace, with members:
+- `server`
+- `client`
+- `common`
 
-The above should then be made available via a gRPC stream.
+The server contains the code for connecting to the exchanges, aggregating the orderbooks
+and providing the summaries via a gRPC endpoint.
+The client has a single external method for subscribing to the summary endpoint of the server.
+Common contains the `.proto` schema, it generates the types and exposes them for the client and server to use.
 
-## Plan
+### Server
+The server is the backbone of the service. It has a single gRPC endpoint:
 
-### Single Connection
+------------------------------------------------------------------------------------------
 
-- [x] The service should connect to a single exchange, to receive the order book for a given key-pair.
-- [x] The service should sort the order book and then extract the top 10 bids and asks.
-- [x] The service should calculate the spread from the order book.
-- [ ] The service should then publish the summary data to the outbound gRPC stream.
+<details>
+ <summary>BookSummary</summary>
 
-### Adding Configuration
-- [ ] The service should be configurable using a `config.toml` to store:
-  - Exchange
-  - WebSocket Address
-  - Traded Pair
+**URL**: `/`  
+**Request**:
 
-### Extending to Multiple Connections
+```json
+{
+  "traded_pair": {
+    "first": "<Token Symbol>", // e.g. "ETH"
+    "second": "<Token Symbol>" // e.g. "BTC"
+  }
+}
+```
+**Response**: (Streaming)
+```json
+{
+  "spread": 0.000001000000000001,
+  "asks": [
+    {
+      "exchange": "Binance",
+      "price": 0.069591,
+      "amount": 5.4281
+    },
+    //...x10
+  ],
+  "bids": [
+    {
+      "exchange": "Binance",
+      "price": 0.06959,
+      "amount": 25.051
+    },
+    //...x10
+  ]
+}
+```
+</details>
 
-- [ ] The config should be modified to hold a list instead of a single entry.
-- [ ] The service should make concurrent attempts to connect to the configured exchanges.
-- [ ] The service should merge the received order books and then sort the entries to allow extraction of the top 10 bids and asks.
-- [ ] The service should calculate the spread from the combined order book.
-- [ ] The service should then publish the summary data to the outbound gRPC stream.
+------------------------------------------------------------------------------------------
+The main process sets up the exchange instances and then spawns two tasks,
+a gRPC server and a request handler.
 
-### Presentation
+When the RPC is called the server checks if it has already received a request for the provided `traded_pair`.
+- If it's the first time, the `grpc_server` will make a request to the main process to spin up a new aggregator.
+  The new aggregator's receiver is then cached in the gRPC server. The server subscribes to the aggregator and streams the responses to the client.
+- If it has already handled this token then there will be an existing aggregator and a receiver in the grpc_server's cache.
+  This cached receiver is then resubscribed to and streamed to the client.
 
-- [ ] A basic frontend could be rapidly mocked up from boilerplate code.
-- [ ] The frontend should connect to the Rust gRPC server to get the summary data.
-- [ ] The frontend should auto-update as new data is received.
+#### OrderbookAggregator
+
+The `OrderbookAggregator`'s job is to connect to each of it's source exchanges for a given `TradedPair`and merge the incoming orderbooks into a `Summary`.
+The `Summary` is then streamed to subscribed receivers.
+
+### Client
+
+The client is quite simple, it has a single public function for connecting to the server's Summary service.
+It has a configurable retry loop for connecting to the server.
+
+------------------------------------------------------------------------------------------
+
+<details>
+<summary><code>connect_to_summary_service</code></summary>
+
+It takes a single arg (`settings`) to define the connection which specifies the server address to bind to, the desired traded pair,
+the maximum no. of attempts that should be made to connect and finally the delay before making a new attempt.
+```rust
+pub struct ConnectionSettings {
+    pub server_address: Url,
+    pub traded_pair: TradedPair,
+    pub max_attempts: usize,
+    pub delay_between_attempts: Duration,
+}
+```
+It returns `ReceiverStream<Result<Summary, Status>>`.
+
+</details>
+
+------------------------------------------------------------------------------------------
 
 ### Future Improvements
 
-- [ ] The service could handle drops in connections with configurable reconnection attempts, delays and timeouts.
-- [ ] The service could store the summary data to allow clients to query historic data - e.g. via REST.
-- [ ] The frontend could be improved generally but also to implement a frontend to query the historic data described above.
+- The grpc_server could be wrapped in a [Tower](https://docs.rs/tower/latest/tower/) service to allow for rate and concurrency limiting.
+- The service could store the summary data to allow clients to query historic data via a new `gRPC` call or `REST` API.
+- A frontend app could be written to consume the data via the gRPC server or leveraging the `orderbook-service-client` lib's `ffi`.
