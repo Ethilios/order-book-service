@@ -135,6 +135,7 @@ pub mod ffi {
         *runtime = None;
     }
 
+    #[allow(clippy::missing_safety_doc)]
     pub unsafe extern "C" fn connect_to_summary_service(
         server_address: *const c_char,
         token_one_symbol: *const c_char,

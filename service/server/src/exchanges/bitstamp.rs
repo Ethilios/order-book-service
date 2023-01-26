@@ -166,11 +166,21 @@ impl OrderBook for LiveOrderBookResponse {
     }
 
     fn best_asks(&self, depth: usize) -> Vec<Level> {
-        sort_orders_to_depth(self.data.asks.clone(), Ordering::LowToHigh, depth, BITSTAMP)
+        sort_orders_to_depth(
+            self.data.asks.clone(),
+            Ordering::LowToHigh,
+            depth,
+            self.source(),
+        )
     }
 
     fn best_bids(&self, depth: usize) -> Vec<Level> {
-        sort_orders_to_depth(self.data.bids.clone(), Ordering::HighToLow, depth, BITSTAMP)
+        sort_orders_to_depth(
+            self.data.bids.clone(),
+            Ordering::HighToLow,
+            depth,
+            self.source(),
+        )
     }
 }
 

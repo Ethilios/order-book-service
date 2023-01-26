@@ -1,10 +1,8 @@
-use std::time::Duration;
 use std::{collections::HashMap, sync::Arc};
 
 use anyhow::Error;
 use futures_util::{stream::SelectAll, StreamExt};
 use tokio::sync::broadcast::{channel as broadcast_channel, Sender as BroadcastSender};
-use tokio::time::Instant;
 use tokio_stream::wrappers::ReceiverStream;
 
 use order_book_service_types::proto::{Summary, TradedPair};
@@ -179,21 +177,11 @@ mod tests {
         }
 
         fn best_asks(&self, depth: usize) -> Vec<Level> {
-            sort_orders_to_depth(
-                self.asks.clone(),
-                Ordering::LowToHigh,
-                depth,
-                &self.source(),
-            )
+            sort_orders_to_depth(self.asks.clone(), Ordering::LowToHigh, depth, self.source())
         }
 
         fn best_bids(&self, depth: usize) -> Vec<Level> {
-            sort_orders_to_depth(
-                self.bids.clone(),
-                Ordering::HighToLow,
-                depth,
-                &self.source(),
-            )
+            sort_orders_to_depth(self.bids.clone(), Ordering::HighToLow, depth, self.source())
         }
     }
 

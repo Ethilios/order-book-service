@@ -76,7 +76,6 @@ pub(crate) enum Ordering {
 }
 
 /// Helper to sort a collection of orders and return a depth-constrained sub-set.
-/// todo convert to default impl
 pub(crate) fn sort_orders_to_depth(
     mut orders: Vec<Order>,
     ordering: Ordering,
@@ -109,7 +108,7 @@ where
 {
     let s = <&str>::deserialize(deserializer)?;
     s.parse::<T>().map_err(|from_str_err| {
-        let err = format!("{:?}", from_str_err);
+        let err = format!("{from_str_err:?}");
         de::Error::custom(err)
     })
 }

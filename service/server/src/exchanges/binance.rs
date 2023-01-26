@@ -145,20 +145,10 @@ impl OrderBook for PartialBookDepth {
     }
 
     fn best_asks(&self, depth: usize) -> Vec<Level> {
-        sort_orders_to_depth(
-            self.asks.clone(),
-            Ordering::LowToHigh,
-            depth,
-            &self.source(),
-        )
+        sort_orders_to_depth(self.asks.clone(), Ordering::LowToHigh, depth, self.source())
     }
 
     fn best_bids(&self, depth: usize) -> Vec<Level> {
-        sort_orders_to_depth(
-            self.bids.clone(),
-            Ordering::HighToLow,
-            depth,
-            &self.source(),
-        )
+        sort_orders_to_depth(self.bids.clone(), Ordering::HighToLow, depth, self.source())
     }
 }
