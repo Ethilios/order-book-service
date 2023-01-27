@@ -27,3 +27,5 @@ jobs:
       run: cd service && cargo build -p "order-book-service-client" --verbose
     - name: Run tests
       run: cd service && cargo test --verbose
+    - name: Run clippy
+      run: cd service && cargo clippy --workspace --all-targets -- -D warnings -A renamed_and_removed_lints
