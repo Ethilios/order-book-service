@@ -36,12 +36,9 @@ impl OrderbookAggregator for OrderbookService {
         &self,
         request: Request<OrderBookRequest>,
     ) -> Result<Response<Self::BookSummaryStream>, Status> {
-        let requested_pair = request
-            .into_inner()
-            .traded_pair
-            .ok_or(Status::invalid_argument(
-                "This RPC requires traded_pair to be provided",
-            ))?;
+        let requested_pair = request.into_inner().traded_pair.ok_or_else(|| {
+            Status::invalid_argument("This RPC requires traded_pair to be provided")
+        })?;
 
         // Acquire a lock on the HashMap of receivers
         let mut map_lock = self.summary_receivers.lock().await;
