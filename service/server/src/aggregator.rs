@@ -36,6 +36,7 @@ impl OrderbookAggregator {
         // Loop through each source exchange. For each try to connect and get a stream for the desired traded-pair.
         // If the attempt fails retry for a number of times.
         // If successful push the receiver and break out of the retry loop.
+        let mut last_error = None;
         let mut orderbook_stream = SelectAll::new();
         for exchange in self.source_exchanges.iter() {
             let mut attempts = 0;
@@ -50,6 +51,7 @@ impl OrderbookAggregator {
                     }
                     Err(err) => {
                         error!("{err}");
+                        last_error = Some(err);
                         warn!(
                             "Unable to connect to {} for pair {}. Retrying...({attempts}/{max_attempts})",
                             exchange.name(),
@@ -61,10 +63,16 @@ impl OrderbookAggregator {
         }
 
         if orderbook_stream.len() < 2 {
-            let err_msg = format!(
+            let mut err_msg = format!(
                 "Unable to connect to more than one exchange, aggregation not possible for {}",
                 self.traded_pair
             );
+
+            if let Some(error) = last_error {
+                let cause = format!("\nCaused by: {error}");
+                err_msg.push_str(&cause);
+            }
+
             error!("{err_msg}");
             // Inform connected clients of the failure
             let _ = self.summary_sender.send(Err(Arc::new(Error::msg(err_msg))));

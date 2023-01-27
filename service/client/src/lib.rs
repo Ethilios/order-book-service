@@ -62,7 +62,6 @@ pub async fn connect_to_summary_service(
                             break;
                         }
                         Err(status) => {
-                            println!("Received status: {status}");
                             let _ = summary_tx.send(Err(status)).await;
                         }
                     }

@@ -40,7 +40,10 @@ async fn main() {
 
     let mut summary_stream = connect_to_summary_service(connection_settings).await;
 
-    while let Some(Ok(summary)) = summary_stream.next().await {
-        println!("{summary}");
+    while let Some(summary_res) = summary_stream.next().await {
+        match summary_res {
+            Ok(summary) => println!("{summary}"),
+            Err(status) => eprintln!("Error: {status:#?}"),
+        }
     }
 }
