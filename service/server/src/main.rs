@@ -76,7 +76,7 @@ async fn flatten_handle<T>(handle: JoinHandle<Result<T, Error>>) -> Result<T, Er
 }
 
 #[cfg(test)]
-mod e2e_tests {
+mod smoke_tests {
     use std::time::Duration;
 
     use futures_util::StreamExt;

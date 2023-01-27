@@ -140,13 +140,13 @@ impl ChannelSubscriptionRequest {
 }
 
 #[derive(Debug, Deserialize)]
-pub(crate) struct LiveOrderBookResponse {
+struct LiveOrderBookResponse {
     data: LiveOrderBookData,
 }
 
 #[derive(Debug, Deserialize)]
 #[allow(unused)]
-pub(crate) struct LiveOrderBookData {
+struct LiveOrderBookData {
     #[serde(skip)]
     timestamp: u64,
     #[serde(skip)]

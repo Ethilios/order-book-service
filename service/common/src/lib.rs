@@ -68,25 +68,6 @@ pub mod proto {
             }
         }
 
-        impl PartialOrd for Level {
-            fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
-                if self.price < other.price {
-                    return Some(Ordering::Less);
-                } else if self.price > other.price {
-                    return Some(Ordering::Greater);
-                }
-
-                // If the price is the same order by amount High -> Low
-                if self.amount < other.amount {
-                    Some(Ordering::Less)
-                } else if self.amount > other.amount {
-                    Some(Ordering::Greater)
-                } else {
-                    Some(Ordering::Equal)
-                }
-            }
-        }
-
         impl Level {
             pub fn new(exchange: &str, price: f64, quantity: f64) -> Self {
                 Self {
@@ -98,50 +79,50 @@ pub mod proto {
 
             /// This will order the [Level]s Low->High by [price].
             /// Where [price] of `self` and `other` are equal it is then ordered High->Low by [amount]
-            pub fn sort_as_asks(&self, other: &Self) -> Option<Ordering> {
+            pub fn sort_as_asks(&self, other: &Self) -> Ordering {
                 // Compare `price`
                 if self.price < other.price {
-                    return Some(Ordering::Less);
+                    return Ordering::Less;
                 } else if self.price > other.price {
-                    return Some(Ordering::Greater);
+                    return Ordering::Greater;
                 }
 
                 // The `price` is equal, compare `amount`
                 // Note that the comparisons are counter to what is implied by the [Ordering] returned.
                 // This is because amount should always be ordered High->Low.
                 if self.amount > other.amount {
-                    return Some(Ordering::Less);
+                    return Ordering::Less;
                 } else if self.amount < other.amount {
-                    return Some(Ordering::Greater);
+                    return Ordering::Greater;
                 };
 
                 // `price` and `amount` are equal
-                Some(Ordering::Equal)
+                Ordering::Equal
             }
 
             /// This will order the [Level]s High->Low by [price].
             /// Where [price] of `self` and `other` are equal it is then ordered High->Low by [amount]
-            pub fn sort_as_bids(&self, other: &Self) -> Option<Ordering> {
+            pub fn sort_as_bids(&self, other: &Self) -> Ordering {
                 // Compare `price`
                 // Note that the comparisons are counter to what is implied by the [Ordering] returned.
                 // This is because `price` is being ordered High->Low.
                 if self.price > other.price {
-                    return Some(Ordering::Less);
+                    return Ordering::Less;
                 } else if self.price < other.price {
-                    return Some(Ordering::Greater);
+                    return Ordering::Greater;
                 };
 
                 // The `price` is equal, compare `amount`
                 // Note that the comparisons are counter to what is implied by the [Ordering] returned.
                 // This is because `amount` should always be ordered High->Low.
                 if self.amount > other.amount {
-                    return Some(Ordering::Less);
+                    return Ordering::Less;
                 } else if self.amount < other.amount {
-                    return Some(Ordering::Greater);
+                    return Ordering::Greater;
                 };
 
                 // `price` and `amount` are equal
-                Some(Ordering::Equal)
+                Ordering::Equal
             }
         }
 
@@ -161,7 +142,7 @@ pub mod proto {
                 Level::new("Example", 10.0, 4.0),
             ];
 
-            unsorted_levels.sort_by(|a, b| a.sort_as_asks(b).unwrap());
+            unsorted_levels.sort_unstable_by(|a, b| a.sort_as_asks(b));
 
             // Now sorted
             assert_eq!(unsorted_levels, expected);
@@ -183,7 +164,7 @@ pub mod proto {
                 Level::new("Example", 9.0, 4.0),
             ];
 
-            unsorted_levels.sort_by(|a, b| a.sort_as_bids(b).unwrap());
+            unsorted_levels.sort_unstable_by(|a, b| a.sort_as_bids(b));
 
             // Now sorted
             assert_eq!(unsorted_levels, expected);

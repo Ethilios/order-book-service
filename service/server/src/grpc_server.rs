@@ -21,7 +21,7 @@ type NewSubscriberNotifier = MpscSender<(TradedPair, OneshotSender<SummaryReceiv
 /// The [OrderbookService]'s role is to emit a stream of Summary data.
 /// It does this by receiving a stream of Orderbooks and then parsing out the spread, top 10 asks and top 10 bids.
 #[derive(Debug)]
-pub(crate) struct OrderbookService {
+struct OrderbookService {
     new_subscriber_notifier: NewSubscriberNotifier,
     // Because the auto-generated trait signature for book_summary() takes `&self` not `&mut self` there needs to be a Mutex to guard the HashMap.
     summary_receivers: Mutex<HashMap<TradedPair, SummaryReceiver>>,
@@ -121,7 +121,6 @@ async fn handle_subscription_stream(
                 let _ = tx.send(Ok(summary)).await;
             }
             Err(err) => {
-                // todo error could matched on here to return a more helpful Status
                 let _ = tx.send(Err(Status::internal(err.to_string()))).await;
             }
         }

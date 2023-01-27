@@ -83,7 +83,7 @@ impl OrderbookAggregator {
 
         let mut print_reducer = 0;
         while let Some((orderbook, received)) = orderbook_stream.next().await {
-            // Check that there are still more than one exchanges sending orderbooks
+            // Check that there is still more than one exchange sending orderbooks
             if orderbook_stream.len() < 2 {
                 let err_msg = "Exchange disconnected, leaving only one connection - unable to aggregate, exiting";
                 error!("{err_msg}");
@@ -123,27 +123,32 @@ impl OrderbookAggregator {
 }
 
 /// Construct a [Summary] from a collection of [OrderBook]s
-pub(crate) fn merge_orderbooks_into_summary(
-    orderbooks: impl Iterator<Item = BoxedOrderbook>,
-) -> Summary {
-    let mut asks = Vec::new();
-    let mut bids = Vec::new();
+fn merge_orderbooks_into_summary(orderbooks: impl Iterator<Item = BoxedOrderbook>) -> Summary {
+    let depth = 10;
+    // There has to be at least 2 orderbooks for the aggregator to work
+    let mut asks = Vec::with_capacity(2 * depth);
+    let mut bids = Vec::with_capacity(2 * depth);
 
     // Loop through order books extending the above vecs with best asks and bids from each.
     for ob in orderbooks {
-        asks.append(&mut ob.best_asks(10));
-        bids.append(&mut ob.best_bids(10));
+        asks.append(&mut ob.best_asks(depth));
+        bids.append(&mut ob.best_bids(depth));
     }
 
     // Sort the combined asks and bids
-    asks.sort_by(|a, b| a.sort_as_asks(b).unwrap());
-    bids.sort_by(|a, b| a.sort_as_bids(b).unwrap());
+    asks.sort_unstable_by(|a, b| a.sort_as_asks(b));
+    asks.truncate(depth);
+    bids.sort_unstable_by(|a, b| a.sort_as_bids(b));
+    bids.truncate(depth);
 
-    Summary {
-        spread: asks[0].price - bids[0].price,
-        asks: asks[..10].to_vec(),
-        bids: bids[..10].to_vec(),
-    }
+    // This code panics if either of the vecs are empty - this shouldn't happen in practice but it
+    // could still be rewritten to propagate an error back to the caller -> client.
+    let spread = match (asks.first(), bids.first()) {
+        (Some(ask), Some(bid)) => ask.price - bid.price,
+        _ => panic!("Level vecs were empty"),
+    };
+
+    Summary { spread, asks, bids }
 }
 
 #[cfg(test)]

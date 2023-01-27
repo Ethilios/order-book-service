@@ -93,7 +93,7 @@ impl Exchange for Binance {
 /// Refers to how many orders should be returned in the data set.
 #[derive(Clone)]
 #[allow(unused)]
-pub(crate) enum Depth {
+enum Depth {
     Five,
     Ten,
     Twenty,
@@ -113,7 +113,7 @@ impl Display for Depth {
 // #[allow(unused)]
 #[derive(Clone)]
 #[allow(unused)]
-pub(crate) enum UpdateSpeed {
+enum UpdateSpeed {
     /// Represents a frequency of 10 updates per second.
     Fast,
     /// Represents a frequency of 1 update per second

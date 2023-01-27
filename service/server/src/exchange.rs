@@ -99,7 +99,7 @@ pub(crate) fn sort_orders_to_depth(
 }
 
 /// Data returned from exchanges is often stringified, this helper aids in converting these to their Rust types.
-pub(crate) fn type_from_str<'de, D, T>(deserializer: D) -> Result<T, D::Error>
+fn type_from_str<'de, D, T>(deserializer: D) -> Result<T, D::Error>
 where
     D: Deserializer<'de>,
     T: FromStr,
