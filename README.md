@@ -1,5 +1,5 @@
 ## Orderbook Service
-[![Build](https://github.com/Ethilios/order-book-service/actions/workflows/rust.yml/badge.svg?branch=main)](https://github.com/Ethilios/order-book-service/actions/workflows/rust.yml)
+[![CI](https://github.com/Ethilios/order-book-service/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/Ethilios/order-book-service/actions/workflows/ci.yml)
 
 The orderbook service aggregates real-time data from exchanges to produce summaries.
 
