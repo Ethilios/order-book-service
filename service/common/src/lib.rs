@@ -145,6 +145,50 @@ pub mod proto {
             }
         }
 
+        #[test]
+        fn should_sort_ask_levels_correctly() {
+            let mut unsorted_levels = vec![
+                Level::new("Example", 9.0, 5.0),
+                Level::new("Example", 10.0, 4.0),
+                Level::new("Example", 10.0, 5.0),
+                Level::new("Example", 9.0, 4.0),
+            ];
+
+            let expected = vec![
+                Level::new("Example", 9.0, 5.0),
+                Level::new("Example", 9.0, 4.0),
+                Level::new("Example", 10.0, 5.0),
+                Level::new("Example", 10.0, 4.0),
+            ];
+
+            unsorted_levels.sort_by(|a, b| a.sort_as_asks(b).unwrap());
+
+            // Now sorted
+            assert_eq!(unsorted_levels, expected);
+        }
+
+        #[test]
+        fn should_sort_bid_levels_correctly() {
+            let mut unsorted_levels = vec![
+                Level::new("Example", 10.0, 4.0),
+                Level::new("Example", 9.0, 5.0),
+                Level::new("Example", 10.0, 5.0),
+                Level::new("Example", 9.0, 4.0),
+            ];
+
+            let expected = vec![
+                Level::new("Example", 10.0, 5.0),
+                Level::new("Example", 10.0, 4.0),
+                Level::new("Example", 9.0, 5.0),
+                Level::new("Example", 9.0, 4.0),
+            ];
+
+            unsorted_levels.sort_by(|a, b| a.sort_as_bids(b).unwrap());
+
+            // Now sorted
+            assert_eq!(unsorted_levels, expected);
+        }
+
         impl Display for Level {
             fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
                 write!(
