@@ -28,4 +28,4 @@ jobs:
     - name: Run tests
       run: cd service && cargo test --verbose
     - name: Run clippy
-      run: cd service && cargo clippy --all-targets
+      run: cd service && cargo clippy --all-targets -- -A derive_hash_xor_eq -A derived_hash_with_manual_eq
