@@ -76,6 +76,14 @@ impl OrderbookAggregator {
 
         let mut print_reducer = 0;
         while let Some((orderbook, received)) = orderbook_stream.next().await {
+            // Check that there are still more than one exchanges sending orderbooks
+            if orderbook_stream.len() < 2 {
+                let err_msg = "Exchange disconnected, leaving only one connection - unable to aggregate, exiting";
+                println!("Error in aggregator: {err_msg}");
+                let _ = self.summary_sender.send(Err(Arc::new(Error::msg(err_msg))));
+                return;
+            }
+
             print_reducer += 1;
 
             if print_reducer == 0 || print_reducer % 7 == 0 {

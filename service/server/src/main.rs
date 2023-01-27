@@ -15,11 +15,11 @@ use crate::{
 };
 
 #[tokio::main]
-async fn main() {
-    run().await
+async fn main() -> Result<(), Error> {
+    Err(run().await)
 }
 
-async fn run() {
+async fn run() -> Error {
     println!("Starting orderbook service...");
 
     // Set up exchange instances
@@ -54,10 +54,13 @@ async fn run() {
     });
 
     // The request handler will only shutdown when the new_subscriber sender closes - as part of the gRPC server shutting down.
-    tokio::try_join!(
+    match tokio::try_join!(
         flatten_handle(grpc_server_handle),
         flatten_handle(request_handler_handle)
-    );
+    ) {
+        Err(error) => error,
+        _ => Error::msg("Should only end due to error - exited on OK"),
+    }
 }
 
 async fn flatten_handle<T>(handle: JoinHandle<Result<T, Error>>) -> Result<T, Error> {

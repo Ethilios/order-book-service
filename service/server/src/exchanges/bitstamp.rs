@@ -92,7 +92,7 @@ impl Exchange for Bitstamp {
                         }
                     }
                 }
-                Err(ws_err) => println!("\nWebsocket Error:\n{ws_err}"),
+                Err(ws_err) => println!("\nWebsocket Error (Bitstamp):\n{ws_err}"),
             }
         });
 

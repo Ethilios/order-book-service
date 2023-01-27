@@ -75,7 +75,7 @@ impl Exchange for Binance {
                         }
                     }
                 }
-                Err(ws_err) => println!("\nWebsocket Error:\n{ws_err}"),
+                Err(ws_err) => println!("\nWebsocket Error (Binance):\n{ws_err}"),
             }
         });
 
