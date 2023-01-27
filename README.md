@@ -11,7 +11,7 @@ cd service
 
 Start by spinning up the server:
 ```shell
-cargo run -p "order-book-service-server"
+RUST_LOG=info cargo run -p "order-book-service-server"
 ```
 
 <details>
