@@ -29,3 +29,7 @@ jobs:
       run: cd service && cargo test --verbose
     - name: Run clippy
       run: cd service && cargo clippy --workspace --all-targets -- -D warnings -A renamed_and_removed_lints
+    - name: Run audit
+      run: cd service && cargo audit
+    - name: Run format
+      run: cd service && cargo fmt --all --check
