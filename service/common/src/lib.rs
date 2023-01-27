@@ -1,3 +1,4 @@
+#![allow(unknown_lints)]
 pub mod proto {
     pub mod orderbook {
         use crate::proto::OrderBookRequest;
