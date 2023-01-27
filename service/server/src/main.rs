@@ -18,11 +18,13 @@ use crate::{
 async fn main() -> Result<(), Error> {
     tracing_subscriber::fmt::init();
 
-    Err(run().await)
+    let port_for_grpc = 3030;
+
+    Err(run(port_for_grpc).await)
 }
 
-async fn run() -> Error {
-    info!("Starting orderbook service...");
+async fn run(port: u16) -> Error {
+    info!("Starting orderbook service on port :{port}...");
 
     // Set up exchange instances
     let binance = Binance::new();
@@ -34,7 +36,7 @@ async fn run() -> Error {
     let (new_subscriber_tx, mut new_subscriber_rx) = mpsc_channel(100);
 
     // Spin up the gRPC server
-    let grpc_server_handle = tokio::spawn(start_server(new_subscriber_tx, 3030));
+    let grpc_server_handle = tokio::spawn(start_server(new_subscriber_tx, port));
 
     // Handle requests from the gRPC server
     let request_handler_handle = tokio::spawn(async move {
