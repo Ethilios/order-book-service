@@ -1,5 +1,5 @@
 ## Orderbook Service
-[![CI](https://github.com/Ethilios/order-book-service/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/Ethilios/order-book-service/actions/workflows/ci.yml)
+[![CI](https://github.com/Ethilios/order-book-service/actions/workflows/order-book-servicei-ci.yml/badge.svg)](https://github.com/Ethilios/order-book-service/actions/workflows/order-book-servicei-ci.yml)
 
 The orderbook service aggregates real-time data from exchanges to produce summaries.
 
