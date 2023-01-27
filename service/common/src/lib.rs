@@ -14,6 +14,7 @@ pub mod proto {
         // These impl blocks are to allow me to use the generated types from the proto schema.
         // The auto-generated types don't have these traits derived so I need to do it here.
 
+        #[allow(clippy::derived_hash_with_manual_eq)]
         impl Hash for TradedPair {
             fn hash<H: Hasher>(&self, state: &mut H) {
                 self.first.hash(state);
