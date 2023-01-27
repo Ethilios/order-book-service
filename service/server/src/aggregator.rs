@@ -97,21 +97,8 @@ impl OrderbookAggregator {
             orderbooks.insert(orderbook.source(), (orderbook, received));
 
             // If the buffer has more than one orderbook stored then we can generate a summary - this also clears the map to prevent stale data carrying over.
-            // todo check timestamps are "close enough" - could be another config value for tolerance
             if orderbooks.keys().len() > 1 {
-                // todo
-
-                // let timestamped_orderbooks = orderbooks
-                //     .drain()
-                //     .map(|(_, timestamped_orderbook)| timestamped_orderbook)
-                //     .collect::<Vec<(BoxedOrderbook, Instant)>>();
-
-                // let tolerance = Duration::from_secs(1);
-                //
-                // let avg_received = timestamped_orderbooks
-                //     .iter()
-                //     .map(|(_, received)| received)
-                //     .sum();
+                // todo check timestamps are within a specified tolerance
 
                 let summary =
                     merge_orderbooks_into_summary(orderbooks.drain().map(|(_, value)| value.0));
