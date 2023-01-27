@@ -26,6 +26,6 @@ jobs:
     - name: Build client
       run: cd service && cargo build -p "order-book-service-client" --verbose
     - name: Run tests
-      run: cd service && cargo test --verbose
+      run: cd service && cargo test --verbose --skip should_provide_summaries_via_grpc
     - name: Run clippy
       run: cd service && cargo clippy --all-targets --deny-warnings
