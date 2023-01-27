@@ -1,6 +1,5 @@
 pub mod proto {
     pub mod orderbook {
-        use crate::proto::OrderBookRequest;
         #[cfg(test)]
         use std::collections::hash_map::DefaultHasher;
         use std::{
@@ -8,7 +7,11 @@ pub mod proto {
             fmt::{Display, Formatter},
             hash::{Hash, Hasher},
         };
+
         use tonic::IntoRequest;
+
+        use crate::proto::OrderBookRequest;
+
         tonic::include_proto!("orderbook");
 
         // These impl blocks are to allow me to use the generated types from the proto schema.

@@ -2,8 +2,7 @@ use std::{fmt::Debug, str::FromStr};
 
 use anyhow::Error;
 use serde::{de, Deserialize, Deserializer};
-use tokio::sync::mpsc::Receiver;
-use tokio::time::Instant;
+use tokio::{sync::mpsc::Receiver, time::Instant};
 
 use order_book_service_types::proto::{Level, TradedPair};
 

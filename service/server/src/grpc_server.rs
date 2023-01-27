@@ -1,8 +1,6 @@
-use anyhow::{Context, Error};
-use std::collections::HashMap;
-use std::net::SocketAddr;
-use std::sync::Arc;
+use std::{collections::HashMap, net::SocketAddr, sync::Arc};
 
+use anyhow::{Context, Error};
 use tokio::sync::{
     broadcast::Receiver as BroadcastReceiver,
     mpsc::{channel as mpsc_channel, Sender as MpscSender},
@@ -140,9 +138,10 @@ async fn handle_subscription_stream(
 
 #[cfg(test)]
 mod tests {
-    use super::*;
     use tokio::sync::broadcast::channel as broadcast_channel;
     use tonic::Code;
+
+    use super::*;
 
     #[tokio::test]
     async fn should_return_summary() {

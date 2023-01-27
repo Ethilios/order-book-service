@@ -3,8 +3,10 @@ use std::fmt::{Display, Formatter};
 use anyhow::Error;
 use futures_util::{SinkExt, StreamExt};
 use serde::{Deserialize, Serialize};
-use tokio::sync::mpsc::{channel as mpsc_channel, Receiver};
-use tokio::time::Instant;
+use tokio::{
+    sync::mpsc::{channel as mpsc_channel, Receiver},
+    time::Instant,
+};
 use tokio_tungstenite::{connect_async, tungstenite::Message};
 use tracing::{debug, error};
 use url::Url;

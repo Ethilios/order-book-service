@@ -4,8 +4,7 @@ mod exchanges;
 mod grpc_server;
 
 use anyhow::Error;
-use tokio::sync::mpsc::channel as mpsc_channel;
-use tokio::task::JoinHandle;
+use tokio::{sync::mpsc::channel as mpsc_channel, task::JoinHandle};
 use tracing::{debug, info};
 
 use crate::{
@@ -76,11 +75,13 @@ async fn flatten_handle<T>(handle: JoinHandle<Result<T, Error>>) -> Result<T, Er
 
 #[cfg(test)]
 mod e2e_tests {
+    use std::time::Duration;
+
     use futures_util::StreamExt;
+    use url::Url;
+
     use order_book_service_client::{connect_to_summary_service, ConnectionSettings};
     use order_book_service_types::proto::TradedPair;
-    use std::time::Duration;
-    use url::Url;
 
     use crate::run;
 
