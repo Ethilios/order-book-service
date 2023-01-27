@@ -3,8 +3,11 @@ name: Rust
 on:
   push:
     branches: [ "main" ]
+    paths-ignore: "**.md"
   pull_request:
     branches: [ "main" ]
+    paths-ignore: "**.md"
+
 
 env:
   CARGO_TERM_COLOR: always
@@ -16,13 +19,11 @@ jobs:
 
     steps:
     - uses: actions/checkout@v3
-    - name: Move into service
-      run: cd service
     - name: Build server
-      run: cargo build -p "order-book-service-server" --verbose
+      run: cd service && cargo build -p "order-book-service-server" --verbose
     - name: Build client
-      run: cargo build -p "order-book-service-client" --verbose
+      run: cd service && cargo build -p "order-book-service-client" --verbose
     - name: Run tests
-      run: cargo test --verbose
+      run: cd service && cargo test --verbose
     - name: Run clippy
-      run: cargo clippy --all-targets --deny-warnings
+      run: cd service && cargo clippy --all-targets --deny-warnings
