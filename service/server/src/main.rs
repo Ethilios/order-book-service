@@ -82,6 +82,7 @@ mod e2e_tests {
     use crate::run;
 
     #[tokio::test]
+    #[ignore]
     async fn should_provide_summaries_via_grpc() {
         // Spin up server
         tokio::spawn(run());

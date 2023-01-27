@@ -1,6 +1,8 @@
 pub mod proto {
     pub mod orderbook {
         use crate::proto::OrderBookRequest;
+        #[cfg(test)]
+        use std::collections::hash_map::DefaultHasher;
         use std::{
             cmp::Ordering,
             fmt::{Display, Formatter},
@@ -20,6 +22,28 @@ pub mod proto {
         }
 
         impl Eq for TradedPair {}
+
+        #[test]
+        fn hash_traded_pair_should_work() {
+            let one_two = TradedPair::new("One", "Two");
+            let also_one_two = TradedPair::new("One", "Two");
+            let three_four = TradedPair::new("Three", "Four");
+
+            let mut hasher = DefaultHasher::new();
+            one_two.hash(&mut hasher);
+            let hashed_one_two = hasher.finish();
+
+            let mut hasher = DefaultHasher::new();
+            also_one_two.hash(&mut hasher);
+            let hash_also_one_two = hasher.finish();
+
+            let mut hasher = DefaultHasher::new();
+            three_four.hash(&mut hasher);
+            let hash_three_four = hasher.finish();
+
+            assert_eq!(hashed_one_two, hash_also_one_two);
+            assert_ne!(hashed_one_two, hash_three_four);
+        }
 
         impl Display for TradedPair {
             fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
