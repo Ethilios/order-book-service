@@ -3,15 +3,82 @@
 
 The orderbook service aggregates real-time data from exchanges to produce summaries.
 
+### Quick Start
+Move into the `service` dir:
+```shell
+cd service
+```
+
+Start by spinning up the server:
+```shell
+cargo run -p "order-book-service-server"
+```
+
+<details>
+<summary>Example Output</summary>
+<pre>
+$ cargo run -p "order-book-service-server"
+    Finished dev [unoptimized + debuginfo] target(s) in 0.06s
+     Running `target/debug/order-book-service-server`
+2023-01-27T10:34:32.161905Z  INFO order_book_service_server: Starting orderbook service on port :3030...
+</pre>
+</details>
+
+Then in another terminal, use the CLI to subscribe to summaries for a traded pair:
+```shell
+cargo run -p "order-book-service-cli" -- "http://0.0.0.0:3030" "ETH" "BTC"
+```
+<details>
+<summary>Example Output</summary>
+<pre>
+cargo run -p "order-book-service-cli" -- "http://0.0.0.0:3030" "ETH" "BTC"
+   Compiling order-book-service-cli v0.1.0 (/home/george/ethilios/order-book-service/service/cli)
+    Finished dev [unoptimized + debuginfo] target(s) in 1.62s
+     Running `target/debug/order-book-service-cli 'http://0.0.0.0:3030' ETH BTC`
+Orderbook Service CLI
+Attempting to connect...        (1/10)
+{
+        "spread": 0.000001000000000001,
+        "asks": [
+        { "exchange": Binance, "price": 0.068841, "amount": 19.4395 },
+        { "exchange": Binance, "price": 0.068842, "amount": 0.0019 },
+        { "exchange": Binance, "price": 0.068843, "amount": 0.0099 },
+        { "exchange": Binance, "price": 0.068844, "amount": 0.0019 },
+        { "exchange": Binance, "price": 0.068845, "amount": 2.2526 },
+        { "exchange": Binance, "price": 0.068846, "amount": 0.0019 },
+        { "exchange": Binance, "price": 0.068847, "amount": 2.1802 },
+        { "exchange": Binance, "price": 0.068848, "amount": 0.0019 },
+        { "exchange": Binance, "price": 0.068849, "amount": 6.3253 },
+        { "exchange": Bitstamp, "price": 0.06884927, "amount": 0.4975128 },
+],
+"bids": [
+        { "exchange": Binance, "price": 0.06884, "amount": 18.3602 },
+        { "exchange": Binance, "price": 0.068839, "amount": 0.0019 },
+        { "exchange": Binance, "price": 0.068838, "amount": 8.9936 },
+        { "exchange": Binance, "price": 0.068837, "amount": 6.3265 },
+        { "exchange": Binance, "price": 0.068836, "amount": 1.0019 },
+        { "exchange": Binance, "price": 0.068835, "amount": 0.0019 },
+        { "exchange": Binance, "price": 0.068834, "amount": 0.0019 },
+        { "exchange": Binance, "price": 0.068833, "amount": 0.0019 },
+        { "exchange": Binance, "price": 0.068832, "amount": 0.0019 },
+        { "exchange": Binance, "price": 0.068831, "amount": 0.3435 },
+] 
+}
+
+</pre>
+</details>
+
 ### Project Structure
 The service is written in Rust and organised in a Cargo workspace, with members:
 - `server`
 - `client`
+- `cli`
 - `common`
 
 The server contains the code for connecting to the exchanges, aggregating the orderbooks
 and providing the summaries via a gRPC endpoint.
-The client has a single external method for subscribing to the summary endpoint of the server.
+The client library has a single external method for subscribing to the summary endpoint of the server.
+The CLI is a simple wrapper for the client.
 Common contains the `.proto` schema, it generates the types and exposes them for the client and server to use.
 
 ### Server
