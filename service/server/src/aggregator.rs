@@ -4,6 +4,7 @@ use anyhow::Error;
 use futures_util::{stream::SelectAll, StreamExt};
 use tokio::sync::broadcast::{channel as broadcast_channel, Sender as BroadcastSender};
 use tokio_stream::wrappers::ReceiverStream;
+use tracing::{debug, error, warn};
 
 use order_book_service_types::proto::{Summary, TradedPair};
 
@@ -48,13 +49,11 @@ impl OrderbookAggregator {
                         break;
                     }
                     Err(err) => {
-                        println!("{err}");
-                        println!(
-                            "Unable to connect to {} for pair {}. Retrying...({}/{})",
+                        error!("{err}");
+                        warn!(
+                            "Unable to connect to {} for pair {}. Retrying...({attempts}/{max_attempts})",
                             exchange.name(),
                             &self.traded_pair,
-                            attempts,
-                            max_attempts
                         )
                     }
                 }
@@ -66,7 +65,7 @@ impl OrderbookAggregator {
                 "Unable to connect to more than one exchange, aggregation not possible for {}",
                 self.traded_pair
             );
-            println!("{err_msg}");
+            error!("{err_msg}");
             // Inform connected clients of the failure
             let _ = self.summary_sender.send(Err(Arc::new(Error::msg(err_msg))));
             return;
@@ -79,7 +78,7 @@ impl OrderbookAggregator {
             // Check that there are still more than one exchanges sending orderbooks
             if orderbook_stream.len() < 2 {
                 let err_msg = "Exchange disconnected, leaving only one connection - unable to aggregate, exiting";
-                println!("Error in aggregator: {err_msg}");
+                error!("{err_msg}");
                 let _ = self.summary_sender.send(Err(Arc::new(Error::msg(err_msg))));
                 return;
             }
@@ -87,7 +86,7 @@ impl OrderbookAggregator {
             print_reducer += 1;
 
             if print_reducer == 0 || print_reducer % 7 == 0 {
-                println!(
+                debug!(
                     "Aggregator for {}, received orderbook from {}",
                     self.traded_pair,
                     orderbook.source()

@@ -74,7 +74,6 @@ pub mod proto {
 
                 // If the price is the same order by amount High -> Low
                 if self.amount < other.amount {
-                    println!("{} is less than {}", self.amount, other.amount);
                     Some(Ordering::Less)
                 } else if self.amount > other.amount {
                     Some(Ordering::Greater)

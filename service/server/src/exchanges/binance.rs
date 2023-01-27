@@ -6,6 +6,7 @@ use serde::Deserialize;
 use tokio::sync::mpsc::{channel as mpsc_channel, Receiver};
 use tokio::time::Instant;
 use tokio_tungstenite::connect_async;
+use tracing::{debug, error};
 use url::Url;
 
 use crate::exchange::{
@@ -67,15 +68,15 @@ impl Exchange for Binance {
                             }
                             Err(serde_err) => {
                                 if msg.is_ping() {
-                                    println!("Binance sent ping");
+                                    debug!("Binance sent ping");
                                 } else {
-                                    println!("Serde Error: {serde_err}");
+                                    error!("Serde Error: {serde_err}");
                                 }
                             }
                         }
                     }
                 }
-                Err(ws_err) => println!("\nWebsocket Error (Binance):\n{ws_err}"),
+                Err(ws_err) => error!("\nWebsocket Error (Binance):\n{ws_err}"),
             }
         });
 

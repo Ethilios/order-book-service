@@ -6,6 +6,7 @@ use serde::{Deserialize, Serialize};
 use tokio::sync::mpsc::{channel as mpsc_channel, Receiver};
 use tokio::time::Instant;
 use tokio_tungstenite::{connect_async, tungstenite::Message};
+use tracing::{debug, error};
 use url::Url;
 
 use crate::exchange::{
@@ -68,9 +69,9 @@ impl Exchange for Bitstamp {
                     if let Some(subscription_response) = ws_stream.next().await {
                         match subscription_response {
                             Ok(response) => {
-                                println!("BITSTAMP ::Initial response: {response}");
+                                debug!("BITSTAMP ::Initial response: {response}");
                             }
-                            Err(error) => println!("WS Error: {error}"),
+                            Err(error) => error!("WS Error: {error}"),
                         }
                     }
 
@@ -84,15 +85,15 @@ impl Exchange for Bitstamp {
                             }
                             Err(serde_err) => {
                                 if msg.is_ping() {
-                                    println!("Bitstamp sent ping");
+                                    debug!("Bitstamp sent ping");
                                 } else {
-                                    println!("\nSerde Error:\n{serde_err}")
+                                    error!("\nSerde Error:\n{serde_err}")
                                 }
                             }
                         }
                     }
                 }
-                Err(ws_err) => println!("\nWebsocket Error (Bitstamp):\n{ws_err}"),
+                Err(ws_err) => error!("\nWebsocket Error (Bitstamp):\n{ws_err}"),
             }
         });
 

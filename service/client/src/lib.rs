@@ -38,6 +38,10 @@ pub async fn connect_to_summary_service(
     tokio::spawn(async move {
         while attempts < settings.max_attempts {
             attempts += 1;
+            println!(
+                "Attempting to connect...\t({attempts}/{})",
+                settings.max_attempts
+            );
 
             match connect_to_server_for_pair(
                 settings.server_address.clone(),
@@ -63,8 +67,7 @@ pub async fn connect_to_summary_service(
                     }
                 },
                 Err(grpc_error) => {
-                    println!("Error connecting to server: {grpc_error}");
-                    println!("Retrying...\t({attempts}/{})", settings.max_attempts);
+                    eprintln!("Error connecting to server: {grpc_error}");
                     tokio::time::sleep(settings.delay_between_attempts).await;
                 }
             }

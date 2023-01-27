@@ -6,6 +6,7 @@ mod grpc_server;
 use anyhow::Error;
 use tokio::sync::mpsc::channel as mpsc_channel;
 use tokio::task::JoinHandle;
+use tracing::{debug, info};
 
 use crate::{
     aggregator::OrderbookAggregator,
@@ -16,11 +17,13 @@ use crate::{
 
 #[tokio::main]
 async fn main() -> Result<(), Error> {
+    tracing_subscriber::fmt::init();
+
     Err(run().await)
 }
 
 async fn run() -> Error {
-    println!("Starting orderbook service...");
+    info!("Starting orderbook service...");
 
     // Set up exchange instances
     let binance = Binance::new();
@@ -38,7 +41,7 @@ async fn run() -> Error {
     let request_handler_handle = tokio::spawn(async move {
         // Await new subscription requests
         while let Some((requested_pair, summary_receiver_sender)) = new_subscriber_rx.recv().await {
-            println!("MAIN :: New request for {requested_pair}");
+            debug!("New request for {requested_pair}");
 
             // There is no aggregator for the requested pair - a new one needs to be created.
             let new_aggregator = OrderbookAggregator::new(&exchanges, requested_pair.clone());
