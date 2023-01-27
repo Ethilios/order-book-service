@@ -90,11 +90,14 @@ mod e2e_tests {
     #[tokio::test]
     #[ignore]
     async fn should_provide_summaries_via_grpc() {
-        // Spin up server
-        tokio::spawn(run());
+        let port = 3030;
 
+        // Spin up server
+        tokio::spawn(run(port));
+
+        let url_str = format!("http://0.0.0.0:{port}");
         let connection_settings = ConnectionSettings {
-            server_address: Url::parse("http://0.0.0.0:3030").unwrap(),
+            server_address: Url::parse(&url_str).unwrap(),
             traded_pair: TradedPair::new("ETH", "BTC"),
             max_attempts: 10,
             delay_between_attempts: Duration::from_secs(1),
