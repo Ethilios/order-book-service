@@ -1,7 +1,8 @@
 extern crate core;
 
-use anyhow::{Context, Error};
 use std::time::Duration;
+
+use anyhow::{Context, Error};
 use tokio::sync::mpsc;
 use tokio_stream::wrappers::ReceiverStream;
 use tonic::{Status, Streaming};
@@ -99,16 +100,17 @@ async fn connect_to_server_for_pair(
 }
 
 pub mod ffi {
-    use crate::ConnectionSettings;
+    use std::{ffi::CStr, sync::Mutex, time::Duration};
+
     use libc::{c_char, c_double, c_int, size_t};
     use once_cell::sync::Lazy;
-    use order_book_service_types::proto::TradedPair;
-    use std::ffi::CStr;
-    use std::sync::Mutex;
-    use std::time::Duration;
     use tokio::runtime::Runtime;
     use tokio_stream::StreamExt;
     use url::Url;
+
+    use order_book_service_types::proto::{Level, TradedPair};
+
+    use crate::ConnectionSettings;
 
     static RUNTIME: Lazy<Mutex<Option<Runtime>>> = Lazy::new(|| Mutex::new(None));
 
@@ -171,39 +173,17 @@ pub mod ffi {
             runtime.block_on(async move {
                 let mut recv_stream = super::connect_to_summary_service(connection_settings).await;
 
-                while let Some(Ok(mut summary)) = recv_stream.next().await {
+                while let Some(Ok(summary)) = recv_stream.next().await {
                     let c_level_bids = summary
                         .bids
-                        .iter_mut()
-                        .map(|level| {
-                            // Append nul character for CStr
-                            level.exchange.push(0.into());
-
-                            CLevel {
-                                exchange: CStr::from_bytes_with_nul(level.exchange.as_ref())
-                                    .expect("Should parse to CString")
-                                    .as_ptr(),
-                                price: level.price,
-                                amount: level.amount,
-                            }
-                        })
+                        .into_iter()
+                        .map(level_to_clevel)
                         .collect::<Vec<CLevel>>();
 
                     let c_level_asks = summary
                         .asks
-                        .iter_mut()
-                        .map(|level| {
-                            // Append nul character for CStr
-                            level.exchange.push(0.into());
-
-                            CLevel {
-                                exchange: CStr::from_bytes_with_nul(level.exchange.as_ref())
-                                    .expect("Should parse to CString")
-                                    .as_ptr(),
-                                price: level.price,
-                                amount: level.amount,
-                            }
-                        })
+                        .into_iter()
+                        .map(level_to_clevel)
                         .collect::<Vec<CLevel>>();
 
                     let c_summary = CSummary {
@@ -223,6 +203,19 @@ pub mod ffi {
         } else {
             teardown_runtime();
             3
+        }
+    }
+
+    fn level_to_clevel(mut level: Level) -> CLevel {
+        // Append nul character for CStr
+        level.exchange.push(0.into());
+
+        CLevel {
+            exchange: CStr::from_bytes_with_nul(level.exchange.as_ref())
+                .expect("Should parse to CString")
+                .as_ptr(),
+            price: level.price,
+            amount: level.amount,
         }
     }
 
